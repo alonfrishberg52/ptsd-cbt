@@ -5,15 +5,14 @@ Flask application with MongoDB integration and text-to-speech capabilities for P
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, flash, url_for
 from flask_pymongo import PyMongo
 from gtts import gTTS
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
-from agents.PTSDAgents import OrchestratorAgent
+from agents.PTSDAgents import OrchestratorAgent, summarize_story_llm
 from agents.PTSDEvalTools import PatientDataParser
 from services.exposure import ExposureProgressionService
 from services.exposure_plan_service import ExposurePlanService
 from bson import ObjectId
 import uuid
-from services.tts_service import generate_tts, list_voices
 from flask_cors import CORS
 import socket
 
@@ -174,6 +173,20 @@ def get_stories():
     """Get all generated stories."""
     try:
         stories = list(mongo.db.stories.find({}, {'_id': 0}))
+        for s in stories:
+            s['story_id'] = str(s['_id'])
+            s['short_id'] = s['story_id'][-6:]
+            # Recursively convert ObjectIds in all nested fields
+            for key in s:
+                s[key] = convert_objectids(s[key])
+            # Ensure summary exists
+            story_text = s.get('result', {}).get('story', '')
+            if 'summary' not in s or not s.get('summary'):
+                s['summary'] = ' '.join(story_text.split()[:30]) + ('...' if len(story_text.split()) > 30 else '')
+            # Ensure feedback fields exist
+            for fb_key in ['habituation_feedback', 'narrative_feedback', 'dialogue_feedback', 'rule_feedback', 'hebrew_feedback']:
+                if fb_key not in s:
+                    s[fb_key] = ''
         return jsonify({
             'status': 'success',
             'stories': stories
@@ -209,6 +222,7 @@ def create_patient():
             'occupation': request.form.get('occupation'),
             'hobbies': request.form.getlist('hobbies'),
             'pet': request.form.get('pet'),
+            'general_info': request.form.get('general_info', ''),
         }
         # PTSD symptoms (comma separated)
         ptsd_symptoms = request.form.get('ptsd_symptoms', '')
@@ -229,6 +243,33 @@ def create_patient():
         # Main avoidances (comma separated)
         main_avoidances = request.form.get('main_avoidances', '')
         data['main_avoidances'] = [s.strip() for s in main_avoidances.split(',') if s.strip()]
+        # Triggers (list of {name, SUD 0-100})
+        triggers = request.form.getlist('triggers[]')
+        triggers_sud = request.form.getlist('triggers_sud[]')
+        data['triggers'] = [
+            {'name': t, 'sud': int(s) if s else None}
+            for t, s in zip(triggers, triggers_sud) if t.strip()
+        ]
+        # Avoidance situations (list of {name, SUD 0-100})
+        avoidances = request.form.getlist('avoidances[]')
+        avoidances_sud = request.form.getlist('avoidances_sud[]')
+        data['avoidances'] = [
+            {'name': a, 'sud': int(s) if s else None}
+            for a, s in zip(avoidances, avoidances_sud) if a.strip()
+        ]
+        # Somatic symptoms (by category)
+        somatic = {}
+        for key in request.form:
+            if key.startswith('somatic['):
+                cat = key.split('[')[1].split(']')[0]
+                somatic[cat] = request.form.getlist(key)
+        data['somatic'] = somatic
+        # PCL-5 (20 items, 0-4)
+        pcl5 = [int(request.form.get(f'pcl5_{i}', 0)) for i in range(1, 21)]
+        data['pcl5'] = pcl5
+        # Depression (PHQ-9, 9 items, 0-3)
+        phq9 = [int(request.form.get(f'phq9_{i}', 0)) for i in range(1, 10)]
+        data['phq9'] = phq9
         # Generate a unique patient_id
         data['patient_id'] = str(uuid.uuid4())
         # Add a 'name' field for display
@@ -269,6 +310,7 @@ def edit_patient(patient_id):
             'occupation': request.form.get('occupation'),
             'hobbies': request.form.getlist('hobbies'),
             'pet': request.form.get('pet'),
+            'general_info': request.form.get('general_info', ''),
         }
         ptsd_symptoms = request.form.get('ptsd_symptoms', '')
         update['ptsd_symptoms'] = [s.strip() for s in ptsd_symptoms.split(',') if s.strip()]
@@ -287,6 +329,33 @@ def edit_patient(patient_id):
         main_avoidances = request.form.get('main_avoidances', '')
         update['main_avoidances'] = [s.strip() for s in main_avoidances.split(',') if s.strip()]
         update['name'] = f"{update.get('first_name', '')} {update.get('last_name', '')}".strip()
+        # Triggers (list of {name, SUD 0-100})
+        triggers = request.form.getlist('triggers[]')
+        triggers_sud = request.form.getlist('triggers_sud[]')
+        update['triggers'] = [
+            {'name': t, 'sud': int(s) if s else None}
+            for t, s in zip(triggers, triggers_sud) if t.strip()
+        ]
+        # Avoidance situations (list of {name, SUD 0-100})
+        avoidances = request.form.getlist('avoidances[]')
+        avoidances_sud = request.form.getlist('avoidances_sud[]')
+        update['avoidances'] = [
+            {'name': a, 'sud': int(s) if s else None}
+            for a, s in zip(avoidances, avoidances_sud) if a.strip()
+        ]
+        # Somatic symptoms (by category)
+        somatic = {}
+        for key in request.form:
+            if key.startswith('somatic['):
+                cat = key.split('[')[1].split(']')[0]
+                somatic[cat] = request.form.getlist(key)
+        update['somatic'] = somatic
+        # PCL-5 (20 items, 0-4)
+        pcl5 = [int(request.form.get(f'pcl5_{i}', 0)) for i in range(1, 21)]
+        update['pcl5'] = pcl5
+        # Depression (PHQ-9, 9 items, 0-3)
+        phq9 = [int(request.form.get(f'phq9_{i}', 0)) for i in range(1, 10)]
+        update['phq9'] = phq9
         mongo.db.patients.update_one({'patient_id': patient_id}, {'$set': update})
         flash('פרטי המטופל עודכנו בהצלחה!', 'success')
         return redirect(url_for('dashboard_patients'))
@@ -311,8 +380,35 @@ def dashboard_stories():
         # Recursively convert ObjectIds in all nested fields
         for key in s:
             s[key] = convert_objectids(s[key])
+        # Ensure summary exists
+        story_text = s.get('result', {}).get('story', '')
+        if 'summary' not in s or not s.get('summary'):
+            s['summary'] = ' '.join(story_text.split()[:30]) + ('...' if len(story_text.split()) > 30 else '')
+        # Ensure feedback fields exist
+        for fb_key in ['habituation_feedback', 'narrative_feedback', 'dialogue_feedback', 'rule_feedback', 'hebrew_feedback']:
+            if fb_key not in s:
+                s[fb_key] = ''
     patients = list(mongo.db.patients.find({}, {'_id': 0, 'patient_id': 1, 'name': 1}))
-    return render_template('dashboard/story_review.html', stories=stories, patients=patients)
+    # Determine next actionable chapter for each patient
+    next_actionable = {}
+    patient_stories = {}
+    for s in stories:
+        pid = s['patient_id']
+        if pid not in patient_stories:
+            patient_stories[pid] = []
+        patient_stories[pid].append(s)
+    for pid, s_list in patient_stories.items():
+        s_list_sorted = sorted(s_list, key=lambda x: x.get('stage', 0))
+        for s in s_list_sorted:
+            if s.get('status') not in ['approved']:
+                next_actionable[pid] = s['story_id']
+                break
+    # Attach compliance info if available
+    for s in stories:
+        compliance = mongo.db.compliance.find_one({'story_id': s['story_id']}, {'_id': 0})
+        if compliance:
+            s['compliance'] = compliance
+    return render_template('dashboard/story_review.html', stories=stories, patients=patients, next_actionable=next_actionable)
 
 @app.route('/dashboard/audit')
 def dashboard_audit():
@@ -612,26 +708,25 @@ def api_story_action():
     story_id = data.get('story_id')
     if not action or not patient_id or not story_id:
         return jsonify({'status': 'error', 'message': 'Missing data'}), 400
-    update = {'$set': {'status': action}}
-    mongo.db.stories.update_one({'_id': ObjectId(story_id), 'patient_id': patient_id}, update)
+    story = mongo.db.stories.find_one({'_id': ObjectId(story_id), 'patient_id': patient_id})
+    if not story:
+        return jsonify({'status': 'error', 'message': 'Story not found'}), 404
+    update = {}
+    if action == 'approve':
+        update['status'] = 'approved'
+    elif action == 'reject':
+        update['status'] = 'rejected'
+    elif action == 'regenerate':
+        # Placeholder: regenerate summary (first 30 words)
+        story_text = story.get('result', {}).get('story', '')
+        summary = ' '.join(story_text.split()[:30]) + ('...' if len(story_text.split()) > 30 else '')
+        update['status'] = 'regenerated'
+        update['summary'] = summary
+    else:
+        return jsonify({'status': 'error', 'message': 'Unknown action'}), 400
+    mongo.db.stories.update_one({'_id': ObjectId(story_id)}, {'$set': update})
     return jsonify({'status': 'success', 'message': f'Story {action}d!'})
 
-@app.route('/api/voices', methods=['GET'])
-def api_voices():
-    return jsonify({'voices': list_voices(language_code='he')})
-
-@app.route('/api/story-tts', methods=['POST'])
-def api_story_tts():
-    data = request.json
-    text = data.get('text')
-    voice_id = data.get('voice_id')
-    speed = float(data.get('speed', 1.0))
-    if not text or not voice_id:
-        return jsonify({'status': 'error', 'message': 'Missing text or voice_id'}), 400
-    filename = f"story_{voice_id}_{int(speed*100)}.mp3"
-    output_path = os.path.join(AUDIO_DIR, filename)
-    generate_tts(text, voice_id, speed, filename)
-    return jsonify({'status': 'success', 'audio_url': f'/static/audio/{filename}'})
 
 @app.route('/config.js')
 def config_js():
@@ -641,6 +736,92 @@ def config_js():
     api_base = f"http://{local_ip}:5000"
     js = f"window.API_BASE_URL = '{api_base}';"
     return js, 200, {'Content-Type': 'application/javascript'}
+
+@app.route('/api/therapist/patients_overview')
+def api_patients_overview():
+    # Example: fetch all patients and their progress
+    patients = list(mongo.db.patients.find({}, {'_id': 0, 'patient_id': 1, 'name': 1, 'avatar_url': 1, 'flagged': 1}))
+    overview = []
+    now = datetime.utcnow()
+    week_ago = now - timedelta(days=7)
+    for p in patients:
+        patient_id = p.get('patient_id')
+        if not patient_id:
+            continue  # Skip patients without patient_id
+        # Get last session date
+        last_story = mongo.db.stories.find_one({'patient_id': patient_id}, sort=[('timestamp', -1)])
+        last_session_date = last_story['timestamp'].isoformat() if last_story and 'timestamp' in last_story else None
+        last_session_days_ago = None
+        if last_story and 'timestamp' in last_story:
+            last_session_days_ago = (now - last_story['timestamp']).days
+        # Get last 5 SUDs
+        suds = list(mongo.db.stories.find({'patient_id': patient_id}).sort('timestamp', -1).limit(5))
+        sud_trend = [s.get('sud', None) for s in reversed(suds)]
+        # High SUD trend: last 3 SUDs all >= 7
+        high_sud_trend = False
+        if len(sud_trend) >= 3 and all(s is not None and s >= 7 for s in sud_trend[-3:]):
+            high_sud_trend = True
+        # Progress: number of completed sessions (out of 3)
+        progress = min(len([s for s in suds if s.get('stage')]), 3) * 33
+        # Flagged
+        flagged = p.get('flagged', False)
+        # Latest session note
+        notes = list(mongo.db.session_feedback.find({'patient_id': patient_id, 'therapist_note': {'$exists': True, '$ne': ''}}).sort('timestamp', -1).limit(1))
+        latest_note = notes[0]['therapist_note'] if notes else None
+        notes_count = mongo.db.session_feedback.count_documents({'patient_id': patient_id, 'therapist_note': {'$exists': True, '$ne': ''}})
+        # --- New metrics ---
+        # Usage logs
+        usage_logs = list(mongo.db.usage_logs.find({'patient_id': patient_id}))
+        total_app_time = sum(u.get('duration', 0) for u in usage_logs)
+        weekly_app_time = sum(u.get('duration', 0) for u in usage_logs if u.get('timestamp') and u['timestamp'] >= week_ago)
+        usage_hours = [u['timestamp'].hour for u in usage_logs if 'timestamp' in u]
+        # Session difficulties (from stories or feedback)
+        session_difficulties = [s.get('difficulty') for s in mongo.db.stories.find({'patient_id': patient_id}).sort('stage', 1) if s.get('difficulty') is not None]
+        # Stories completed
+        stories_completed = mongo.db.stories.count_documents({'patient_id': patient_id, 'status': 'completed'})
+        # SUD by chapter
+        sud_by_chapter = [s.get('sud') for s in mongo.db.stories.find({'patient_id': patient_id}).sort('stage', 1)]
+        # Rewards (trophies/stars)
+        rewards = mongo.db.rewards.count_documents({'patient_id': patient_id}) if 'rewards' in mongo.db.list_collection_names() else 0
+        # Progress rate (sessions per week)
+        session_timestamps = [s['timestamp'] for s in mongo.db.stories.find({'patient_id': patient_id}, {'timestamp': 1}) if 'timestamp' in s]
+        progress_rate = 0.0
+        if session_timestamps:
+            session_timestamps.sort()
+            total_weeks = max(1, (session_timestamps[-1] - session_timestamps[0]).days / 7)
+            progress_rate = len(session_timestamps) / total_weeks if total_weeks > 0 else len(session_timestamps)
+        # Hotspots (sessions much slower/faster than average)
+        session_durations = [u.get('duration', 0) for u in usage_logs if 'session_index' in u]
+        avg_duration = sum(session_durations) / len(session_durations) if session_durations else 0
+        hotspots = [u['session_index'] for u in usage_logs if 'session_index' in u and ((u.get('duration', 0) > avg_duration * 1.5) or (u.get('duration', 0) < avg_duration * 0.5))]
+        overview.append({
+            'name': p.get('name', ''),
+            'avatar_url': p.get('avatar_url'),
+            'last_session_date': last_session_date,
+            'last_session_days_ago': last_session_days_ago,
+            'sud_trend': sud_trend,
+            'high_sud_trend': high_sud_trend,
+            'progress': progress,
+            'flagged': flagged,
+            'patient_id': patient_id,
+            'latest_note': latest_note,
+            'notes_count': notes_count,
+            # New metrics
+            'total_app_time': total_app_time,
+            'weekly_app_time': weekly_app_time,
+            'usage_hours': usage_hours,
+            'session_difficulties': session_difficulties,
+            'stories_completed': stories_completed,
+            'sud_by_chapter': sud_by_chapter,
+            'rewards': rewards,
+            'progress_rate': progress_rate,
+            'hotspots': hotspots
+        })
+    return jsonify({'status': 'success', 'patients': overview})
+
+@app.route('/dashboard/patients_overview')
+def dashboard_patients_overview():
+    return render_template('dashboard/patients_overview.html')
 
 if __name__ == '__main__':
     app.run(debug=True) 

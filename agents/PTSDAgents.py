@@ -457,3 +457,15 @@ class StoryGenAgent:
 
         return completion['content']
 
+def summarize_story_llm(text: str) -> str:
+    """Summarize a story using the LLM client (OpenAI/Ollama)."""
+    prompt = (
+        "סכם את הסיפור הבא עבור קלינאי PTSD. הדגש את עיקרי החוויה, הרגשות, וההתקדמות הטיפולית. סכם ב-3-4 משפטים.\n\n" + text
+    )
+    messages = [
+        {"role": "system", "content": "אתה מסכם סיפורים טיפוליים עבור קלינאים בעברית."},
+        {"role": "user", "content": prompt}
+    ]
+    completion = client.chat_completion(messages, max_tokens=200, temperature=0.4, model="gpt-4o")
+    return completion['content'].strip()
+
