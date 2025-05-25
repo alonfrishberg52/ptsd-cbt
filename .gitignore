@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+
+# macOS
+.DS_Store
+
+# Flask/Project
+.env
+mindshift-tts-*.json
+/static/audio/*
+/static/dashboard/img/*
+*.json
+
+# VSCode/Cursor
+.vscode/
+.cursorrules/
+
+# Node/npm (if any)
+node_modules/
+
+# Jupyter
+.ipynb_checkpoints/ 

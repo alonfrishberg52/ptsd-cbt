@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% block title %}הסיפור שלך | NarraTIVE{% endblock %}
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body {
+  font-family: 'Varela Round', 'Assistant', Arial, sans-serif !important;
+  background: linear-gradient(135deg, #e0f7fa 0%, #f4f6fb 100%);
+  overflow-x: hidden;
+}
+.animated-bg {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0;
+  pointer-events: none;
+}
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.18;
+  animation: float 12s infinite linear;
+}
+@keyframes float {
+  0% { transform: translateY(100vh) scale(1);}
+  100% { transform: translateY(-10vh) scale(1.2);}
+}
+.fade-in {
+  animation: fadeIn 1.2s cubic-bezier(.4,0,.2,1);
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(30px);}
+  to { opacity: 1; transform: none;}
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="animated-bg">
+  <div class="bubble" style="width:80px;height:80px;left:10vw;animation-delay:0s;background:#2563eb;"></div>
+  <div class="bubble" style="width:60px;height:60px;left:70vw;animation-delay:2s;background:#00bfae;"></div>
+  <div class="bubble" style="width:100px;height:100px;left:40vw;animation-delay:4s;background:#b2ebf2;"></div>
+  <div class="bubble" style="width:50px;height:50px;left:80vw;animation-delay:6s;background:#2563eb;"></div>
+  <div class="bubble" style="width:90px;height:90px;left:20vw;animation-delay:8s;background:#00bfae;"></div>
+</div>
+<div class="card shadow main-card p-4 fade-in" style="max-width:800px;z-index:1;position:relative;">
+    <div class="brand-header text-center" style="font-size:2.2rem; font-weight:700; color:#2563eb; letter-spacing:1px;">NarraTIVE</div>
+    <!-- Chapter Card -->
+    <div class="card mb-3 shadow" style="border-radius: 18px;">
+      <div class="card-header bg-light" style="font-size:1.1rem;">
+        📖 פרק {{ stage if stage <= 3 else 3 }} מתוך 3
+      </div>
+      <div class="card-body" style="min-height:200px; font-size:1.15rem;">
+        {% if story %}
+          {{ story|safe }}
+        {% elif session_complete %}
+          <div style="color:#888; text-align:center;">
+            סיום המפגש להיום, שיהיה לך יום נעים!
+            <br><a href="/feedback" class="btn btn-success mt-4">סיים מפגש והעבר משוב</a>
+          </div>
+        {% else %}
+          <div style="color:#888; text-align:center;">
+            סיום המפגש להיום, שיהיה לך יום נעים!
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    {% if sud %}
+        <div class="alert alert-info mb-3 text-center" style="font-size:1.1rem;">
+            רמת ה-SUD שלך בתחילת הפרק: <strong>{{ sud }}</strong>
+        </div>
+    {% endif %}
+    {% if story and not session_complete %}
+        <!-- Encouragement Message -->
+        <div class="alert alert-success mt-3" style="font-size:1.1rem;" id="encouragement-message">
+          💪 כל הכבוד על ההתקדמות! המשך לפרק הבא.
+        </div>
+        <button id="new-encouragement-btn" class="btn btn-link" style="font-size:1rem;">עוד עידוד 🔄</button>
+        <!-- Session Notes -->
+        <div class="card mt-3 p-3">
+          <label for="session-notes" style="font-size:1.1rem;">הערות למפגש (רק עבורך):</label>
+          <textarea id="session-notes" class="form-control" rows="3" style="font-size:1.05rem;"></textarea>
+          <div id="notes-status" class="text-success mt-1" style="display:none;">ההערות נשמרו!</div>
+        </div>
+        <!-- SUD Slider with Emoji -->
+        <form id="sud-form" class="mt-3">
+            <label for="sud" class="form-label" style="font-size:1.1rem;">מה רמת ה-SUD שלך כעת? (0-100)</label>
+            <div class="d-flex align-items-center">
+              <span id="sud-emoji" style="font-size:1.5rem;">😌</span>
+              <input type="range" id="sud" name="sud" min="0" max="100" class="form-range mx-2" required style="flex:1;">
+              <span style="font-size:1.5rem;">😰</span>
+            </div>
+            <div class="text-center mt-1" id="sud-slider-value" style="font-size:1.1rem;">0</div>
+            <button type="submit" class="btn btn-primary w-100 mt-2" style="font-size:1.15rem;">
+                {% if stage < 3 %}המשך לפרק הבא{% else %}סיים מפגש{% endif %}
+            </button>
+        </form>
+        <div id="error-message" class="text-danger mt-2"></div>
+    {% elif session_complete and not story %}
+        <!-- Only show feedback button if session is complete and there is no story -->
+        <a href="/feedback" class="btn btn-success w-100 mt-3" style="font-size:1.15rem;">סיים מפגש והעבר משוב</a>
+    {% endif %}
+    <!-- ElevenLabs TTS UI -->
+    <div class="card mt-4 p-3">
+      <h5 style="font-family:'Assistant',Arial,sans-serif;">האזן לסיפור שלך</h5>
+      <div class="row mb-2">
+        <div class="col">
+          <label for="voice-select" class="form-label">בחר קול</label>
+          <select id="voice-select" class="form-select"></select>
+        </div>
+        <div class="col">
+          <label for="speed-slider" class="form-label">קצב דיבור: <span id="speed-value">1.0</span>x</label>
+          <input type="range" id="speed-slider" min="0.7" max="1.3" step="0.05" value="1.0" class="form-range">
+        </div>
+      </div>
+      <button id="play-story-btn" class="btn btn-primary w-100 mb-2">נגן סיפור</button>
+      <audio id="story-audio" controls style="width:100%"></audio>
+      <div id="tts-error" class="text-danger mt-2"></div>
+    </div>
+</div>
+<div id="loader-overlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:rgba(255,255,255,0.7);">
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
+        <div class="spinner-border text-primary" style="width:3rem;height:3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="mt-2 text-center">אנא המתן...</div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function showLoader() {
+    document.getElementById('loader-overlay').style.display = 'block';
+}
+function hideLoader() {
+    document.getElementById('loader-overlay').style.display = 'none';
+}
+const form = document.getElementById('sud-form');
+const sudSlider = document.getElementById('sud');
+const sudSliderValue = document.getElementById('sud-slider-value');
+if (sudSlider) {
+  sudSlider.oninput = function() {
+    sudSliderValue.textContent = this.value;
+  };
+  sudSlider.value = 0;
+  sudSliderValue.textContent = 0;
+}
+if (form) {
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        const sud = document.getElementById('sud').value;
+        if (isNaN(sud) || sud < 0 || sud > 100) {
+            document.getElementById('error-message').textContent = 'אנא הזן ערך חוקי בין 0 ל-100';
+            return;
+        }
+        showLoader();
+        try {
+            const res = await fetch('/api/next-scenario', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({current_sud: sud})
+            });
+            const data = await res.json();
+            if (data.status === 'success' || data.status === 'done') {
+                window.location.reload();
+            } else {
+                document.getElementById('error-message').textContent = data.message || 'שגיאה בהתקדמות לפרק הבא';
+            }
+        } finally {
+            hideLoader();
+        }
+    }
+}
+// ElevenLabs TTS Frontend
+async function fetchVoices() {
+    const res = await fetch('/api/voices');
+    const data = await res.json();
+    const select = document.getElementById('voice-select');
+    select.innerHTML = '';
+    let defaultVoiceId = null;
+    data.voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.voice_id;
+        opt.textContent = v.name;
+        select.appendChild(opt);
+        if (!defaultVoiceId && (v.name.includes('Eli') || v.name.includes('Rachel') || v.name.includes('hebrew') || v.name.includes('Hebrew'))) {
+            defaultVoiceId = v.voice_id;
+        }
+    });
+    if (defaultVoiceId) select.value = defaultVoiceId;
+}
+document.getElementById('speed-slider').addEventListener('input', function() {
+    document.getElementById('speed-value').textContent = this.value;
+});
+document.getElementById('play-story-btn').onclick = async function() {
+    // Get story text from the main story card
+    const text = document.querySelector('.card-body').innerText || document.querySelector('.card-body').textContent;
+    const voice_id = document.getElementById('voice-select').value;
+    const speed = document.getElementById('speed-slider').value;
+    const errorDiv = document.getElementById('tts-error');
+    errorDiv.textContent = '';
+    if (!text || !voice_id) {
+        errorDiv.textContent = 'יש לבחור קול ולהזין טקסט.';
+        return;
+    }
+    showLoader();
+    try {
+        const res = await fetch('/api/story-tts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text, voice_id, speed})
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const audio = document.getElementById('story-audio');
+            audio.src = data.audio_url + '?t=' + Date.now(); // prevent caching
+            audio.play();
+        } else {
+            errorDiv.textContent = data.message || 'שגיאה ביצירת אודיו';
+        }
+    } catch (e) {
+        errorDiv.textContent = 'שגיאה בחיבור לשרת: ' + e;
+    } finally {
+        hideLoader();
+    }
+};
+fetchVoices();
+// Encouragements
+const encouragements = [
+  'אתה עושה עבודה נהדרת! המשך כך.',
+  'כל שלב מקרב אותך למטרה שלך.',
+  'התקדמות קטנה היא עדיין התקדמות.',
+  'המסע שלך חשוב ומשמעותי.',
+  'המשך להאמין בעצמך.'
+];
+const encouragementDiv = document.getElementById('encouragement-message');
+const newEncouragementBtn = document.getElementById('new-encouragement-btn');
+function setRandomEncouragement() {
+  encouragementDiv.textContent = '💪 ' + encouragements[Math.floor(Math.random() * encouragements.length)];
+}
+if (encouragementDiv) setRandomEncouragement();
+if (newEncouragementBtn) newEncouragementBtn.onclick = setRandomEncouragement;
+// Session Notes (auto-save)
+const notesArea = document.getElementById('session-notes');
+const notesStatus = document.getElementById('notes-status');
+const sessionKey = 'session_notes_' + (window.location.pathname.split('/').pop() || 'default');
+if (notesArea) {
+  notesArea.value = localStorage.getItem(sessionKey) || '';
+  notesArea.addEventListener('input', function() {
+    localStorage.setItem(sessionKey, notesArea.value);
+    notesStatus.style.display = 'block';
+    setTimeout(() => { notesStatus.style.display = 'none'; }, 1000);
+  });
+}
+// SUD Slider Emoji
+const sudEmoji = document.getElementById('sud-emoji');
+if (sudSlider && sudEmoji) {
+  function updateSudEmoji(val) {
+    val = Number(val);
+    if (val <= 20) sudEmoji.textContent = '😌';
+    else if (val <= 40) sudEmoji.textContent = '🙂';
+    else if (val <= 60) sudEmoji.textContent = '😐';
+    else if (val <= 80) sudEmoji.textContent = '😟';
+    else sudEmoji.textContent = '😰';
+  }
+  sudSlider.addEventListener('input', function() {
+    updateSudEmoji(this.value);
+  });
+  updateSudEmoji(sudSlider.value);
+}
+</script>
+{% endblock %} 

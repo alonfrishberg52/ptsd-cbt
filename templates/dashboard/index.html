@@ -1,0 +1,60 @@
+<!-- Therapist Dashboard Main Page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Therapist Dashboard</title>
+    <link rel="stylesheet" href="/static/dashboard/css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-brain"></i> MindShift</h2>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="/dashboard/patients"><i class="fa-solid fa-users"></i> Patients</a></li>
+                    <li><a href="/dashboard/plans"><i class="fa-solid fa-list-check"></i> Exposure Plans</a></li>
+                    <li><a href="/dashboard/stories"><i class="fa-solid fa-book-open"></i> Stories</a></li>
+                    <li><a href="/dashboard/audit"><i class="fa-solid fa-clipboard-list"></i> Audit Log</a></li>
+                    <li><a href="/dashboard/compliance"><i class="fa-solid fa-shield-check"></i> Rule Compliance</a></li>
+                </ul>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <header class="dashboard-header">
+                <h1>Welcome, Therapist</h1>
+                <div class="quick-stats">
+                    <div class="stat-card">
+                        <i class="fa-solid fa-users"></i>
+                        <div>
+                            <span class="stat-number" id="stat-patients">--</span>
+                            <span class="stat-label">Patients</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-list-check"></i>
+                        <div>
+                            <span class="stat-number" id="stat-pending-plans">--</span>
+                            <span class="stat-label">Pending Plans</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-shield-check"></i>
+                        <div>
+                            <span class="stat-number" id="stat-compliance-alerts">--</span>
+                            <span class="stat-label">Compliance Alerts</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <div id="dashboard-content">
+                <!-- Dynamic content will be loaded here -->
+            </div>
+        </main>
+    </div>
+    <script src="/static/dashboard/js/dashboard.js"></script>
+</body>
+</html> 

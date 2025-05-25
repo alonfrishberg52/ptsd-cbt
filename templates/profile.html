@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>יצירת פרופיל | NarraTIVE</title>
+    <link rel="stylesheet" href="/static/dashboard/css/landing.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="profile-container">
+        <div class="progress-bar"><div class="progress" style="width:33%"></div></div>
+        <div class="step-indicator">שלב 1 מתוך 3</div>
+        <form id="profile-form" class="profile-card glass">
+            <h2>יצירת פרופיל מטופל</h2>
+            <div class="microcopy">הפרטים שלך ישמשו להתאמת הסיפור הטיפולי עבורך</div>
+            <div class="input-group">
+                <input type="text" name="name" placeholder=" " required>
+                <span class="input-icon"><i class="fa fa-user"></i></span>
+                <label class="floating-label">שם מלא</label>
+                <div class="input-error" id="error-name"></div>
+            </div>
+            <div class="input-group">
+                <input type="number" name="age" min="6" max="120" placeholder=" " required>
+                <span class="input-icon"><i class="fa fa-calendar"></i></span>
+                <label class="floating-label">גיל</label>
+                <div class="input-error" id="error-age"></div>
+            </div>
+            <div class="input-group">
+                <textarea name="background" placeholder=" " rows="3"></textarea>
+                <span class="input-icon"><i class="fa fa-info-circle"></i></span>
+                <label class="floating-label">רקע אישי</label>
+            </div>
+            <button class="button-primary big" type="submit">
+                המשך <span class="arrow-icon">&#8592;</span>
+                <span class="spinner" style="display:none"></span>
+            </button>
+        </form>
+    </div>
+    <div class="toast-error" id="toast-error"></div>
+    <script src="/static/dashboard/js/landing.js"></script>
+</body>
+</html> 

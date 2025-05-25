@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTSD Story Generator</title>
+    <link rel="icon" type="image/png" href="/static/dashboard/img/mindshift_logo.svg">
+    <link rel="stylesheet" href="/static/dashboard/css/main.css">
+    <style>
+        .logo-header {
+            display: flex; align-items: center; justify-content: center;
+            margin-top: 2.5rem; margin-bottom: 1.2rem;
+        }
+        .logo-header img {
+            width: 100px; height: 100px; margin-left: 0.7em;
+        }
+        .logo-header .app-title {
+            font-size: 2rem; color: #3b82f6; font-weight: 700;
+        }
+        .watermark-logo {
+            position: fixed; bottom: 2vw; left: 2vw; opacity: 0.07; z-index: 0;
+            width: 220px; height: 220px; pointer-events: none;
+        }
+        @media (max-width: 600px) {
+            .watermark-logo { width: 90px; height: 90px; left: 1vw; bottom: 1vw; }
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-header">
+        <img src="/static/dashboard/img/mindshift_logo.svg" alt="mindShift" />
+        <span class="app-title">NarraTIVE</span>
+    </div>
+    <img src="/static/dashboard/img/mindshift_logo.svg" class="watermark-logo" alt="NarraTIVE watermark" />
+    <div class="main-container">
+        <div class="card">
+            <div class="card-title">מחולל סיפורי PTSD</div>
+            <label for="patient-data" class="label">הזן נתוני מטופל</label>
+            <textarea id="patient-data" placeholder="הכנס כאן את נתוני המטופל..." dir="rtl"></textarea>
+            <button id="parse-data" class="button-primary">ניתוח נתונים</button>
+        </div>
+        <div id="sud-section" class="card" style="display: none;">
+            <div class="section-title">בחר רמת SUD התחלתית (10-100)</div>
+            <select id="sud-input">
+                <option value="">בחר רמת SUD</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="40">40</option>
+                <option value="50">50</option>
+                <option value="60">60</option>
+                <option value="70">70</option>
+                <option value="80">80</option>
+                <option value="90">90</option>
+                <option value="100">100</option>
+            </select>
+            <button id="start-scenario" class="button-primary" disabled>התחל תרחיש</button>
+        </div>
+        <div id="parsed-data-section" class="card-secondary" style="display: none;">
+            <div class="section-title">נתונים מעובדים</div>
+            <div id="parsed-data"></div>
+        </div>
+        <div id="scenario-controls" class="card" style="display:none;">
+            <div id="scenario-stage"></div>
+            <div id="scenario-story" class="section-title"></div>
+            <div id="scenario-eval"></div>
+            <label for="scenario-sud-input" class="label">מה רמת ה-SUD שלך עכשיו?</label>
+            <select id="scenario-sud-input">
+                <option value="">בחר רמת SUD</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="40">40</option>
+                <option value="50">50</option>
+                <option value="60">60</option>
+                <option value="70">70</option>
+                <option value="80">80</option>
+                <option value="90">90</option>
+                <option value="100">100</option>
+            </select>
+            <button id="scenario-next-btn" class="button-primary" disabled>המשך לפרק הבא</button>
+        </div>
+        <div class="card-secondary">
+            <div class="section-title">סיפורים קודמים</div>
+            <div id="previous-stories"></div>
+        </div>
+        <div id="loading-spinner" style="display:none;text-align:center;">
+            <div style="margin:2rem auto;">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="24" cy="24" r="20" stroke="#3b82f6" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.415, 31.415" fill="none">
+                        <animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="1s" values="0 24 24;360 24 24" keyTimes="0;1"/>
+                    </circle>
+                </svg>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const patientDataTextarea = document.getElementById('patient-data');
+            const parseDataBtn = document.getElementById('parse-data');
+            const parsedDataSection = document.getElementById('parsed-data-section');
+            const parsedDataDiv = document.getElementById('parsed-data');
+            const sudSection = document.getElementById('sud-section');
+            const sudInput = document.getElementById('sud-input');
+            const startScenarioBtn = document.getElementById('start-scenario');
+            const scenarioControls = document.getElementById('scenario-controls');
+            const scenarioStageDiv = document.getElementById('scenario-stage');
+            const scenarioStoryDiv = document.getElementById('scenario-story');
+            const scenarioEvalDiv = document.getElementById('scenario-eval');
+            const scenarioSudInput = document.getElementById('scenario-sud-input');
+            const scenarioNextBtn = document.getElementById('scenario-next-btn');
+            const previousStories = document.getElementById('previous-stories');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            
+            // Add these variables to track plan and patient IDs (for demo, prompt if not set)
+            let currentPlanId = sessionStorage.getItem('plan_id') || prompt('Enter plan_id for demo');
+            let currentPatientId = sessionStorage.getItem('patient_id') || prompt('Enter patient_id for demo');
+            sessionStorage.setItem('plan_id', currentPlanId);
+            sessionStorage.setItem('patient_id', currentPatientId);
+            
+            // Parse patient data
+            parseDataBtn.addEventListener('click', async () => {
+                const patientData = patientDataTextarea.value;
+                if (!patientData) return;
+                
+                loadingSpinner.style.display = 'block';
+                
+                try {
+                    const response = await fetch('/api/parse-patient-data', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ patient_data: patientData })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        parsedDataDiv.innerHTML = `<pre dir="rtl">${JSON.stringify(result.data, null, 2)}</pre>`;
+                        parsedDataSection.style.display = 'block';
+                        sudSection.style.display = 'block';
+                        startScenarioBtn.disabled = true;
+                        scenarioControls.style.display = 'none';
+                    } else {
+                        alert('שגיאה בניתוח הנתונים: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('שגיאה בשליחת הנתונים: ' + error);
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                }
+            });
+            
+            // Enable start scenario button only if SUD is valid
+            sudInput.addEventListener('change', () => {
+                startScenarioBtn.disabled = !sudInput.value;
+            });
+            
+            // Start scenario
+            startScenarioBtn.addEventListener('click', async () => {
+                const sudValue = parseInt(sudInput.value, 10);
+                if (isNaN(sudValue) || sudValue < 10 || sudValue > 100 || sudValue % 10 !== 0) {
+                    alert('אנא בחר ערך SUD חוקי (10-100, בקפיצות של 10)');
+                    return;
+                }
+                loadingSpinner.style.display = 'block';
+                try {
+                    const response = await fetch('/api/start-scenario', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ initial_sud: sudValue })
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        showScenarioControls(result.stage, result.result);
+                        scenarioControls.style.display = '';
+                        sudSection.style.display = 'none';
+                    } else {
+                        alert('שגיאה בהתחלת התרחיש: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('שגיאה בשליחת הבקשה: ' + error);
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                }
+            });
+            
+            // Enable next button only if SUD is valid
+            scenarioSudInput.addEventListener('change', () => {
+                scenarioNextBtn.disabled = !scenarioSudInput.value;
+            });
+            
+            // Next scenario part
+            scenarioNextBtn.addEventListener('click', async () => {
+                const sudValue = parseInt(scenarioSudInput.value, 10);
+                if (isNaN(sudValue) || sudValue < 10 || sudValue > 100 || sudValue % 10 !== 0) {
+                    alert('אנא בחר ערך SUD חוקי (10-100, בקפיצות של 10)');
+                    return;
+                }
+                loadingSpinner.style.display = 'block';
+                try {
+                    // Submit SUD feedback to backend
+                    await fetch('/api/submit-sud-feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            plan_id: currentPlanId,
+                            patient_id: currentPatientId,
+                            part_index: scenarioStageDiv.textContent.match(/\d+/) ? parseInt(scenarioStageDiv.textContent.match(/\d+/)[0], 10) : 1,
+                            sud_value: sudValue
+                        })
+                    });
+                    const response = await fetch('/api/next-scenario', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ current_sud: sudValue })
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        showScenarioControls(result.stage, result.result);
+                    } else if (result.status === 'done') {
+                        scenarioControls.innerHTML = '<h4>התרחיש הושלם!</h4>';
+                    } else {
+                        alert('שגיאה בהתקדמות התרחיש: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('שגיאה בשליחת הבקשה: ' + error);
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                }
+            });
+            
+            function showScenarioControls(stage, result) {
+                scenarioStageDiv.innerHTML = `<h4>פרק ${stage}</h4>`;
+                scenarioStoryDiv.textContent = result.story;
+                scenarioEvalDiv.textContent = `הערכת SUD: ${result.evaluation.expected_sud} - ${result.evaluation.explanation}`;
+                scenarioSudInput.value = '';
+                scenarioNextBtn.disabled = true;
+            }
+            
+            // Load previous stories
+            async function loadPreviousStories() {
+                try {
+                    const response = await fetch('/api/stories');
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        previousStories.innerHTML = result.stories
+                            .map(story => `
+                                <div class="story-card">
+                                    <div class="timestamp">${new Date(story.timestamp).toLocaleString('he-IL')}</div>
+                                    <div class="mt-2">${story.story}</div>
+                                    <audio class="audio-player mt-2" controls src="/static/audio/${story.audio_file}"></audio>
+                                </div>
+                            `)
+                            .join('');
+                    }
+                } catch (error) {
+                    console.error('שגיאה בטעינת סיפורים קודמים:', error);
+                }
+            }
+            
+            // Load previous stories on page load
+            loadPreviousStories();
+        });
+    </script>
+</body>
+</html> 

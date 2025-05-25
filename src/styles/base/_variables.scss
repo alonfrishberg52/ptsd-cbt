@@ -1,0 +1,38 @@
+// Therapeutic color palette
+$primary-color: #3E7CB1;
+$soothing-color: #81B29A;
+$warning-color: #F2CC8F;
+$danger-color: #E07A5F;
+$neutral-color: #F4F1DE;
+
+// Focus indicator variables
+$focus-outline-width: 3px;
+$focus-outline-color: $primary-color;
+$focus-outline-offset: 2px;
+
+// Animation timing
+$fast-transition: 200ms;
+$standard-transition: 300ms;
+$slow-transition: 500ms;
+
+// Easing functions
+$easing-gentle: cubic-bezier(0.4, 0, 0.2, 1);
+$easing-breathing: cubic-bezier(0.4, 0, 0.6, 1);
+$easing-calming: cubic-bezier(0.1, 0.7, 0.6, 1);
+
+// Spacing
+$breathing-space-sm: 1rem;
+$breathing-space-md: 1.5rem;
+$breathing-space-lg: 2.5rem;
+
+// Cursor sizes
+$cursor-default-size: 24px;
+$cursor-active-size: 32px;
+
+// Mobile font and spacing
+$font-size-mobile: 1rem;
+$font-size-mobile-sm: 0.95rem;
+$heading-size-mobile: 1.3rem;
+$input-padding-mobile: 0.8rem 0.7rem 0.8rem 1.7rem;
+$card-padding-mobile: 0.7rem 0.2rem;
+$card-radius-mobile: 16px; 

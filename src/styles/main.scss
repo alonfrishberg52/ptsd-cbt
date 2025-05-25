@@ -1,0 +1,44 @@
+@import './base/variables';
+@import './base/accessibility';
+@import './base/animations';
+@import './components/cursors';
+
+// Mobile-specific overrides
+@media (max-width: 600px) {
+  .profile-card, .pre-session-card {
+    padding: $card-padding-mobile;
+    border-radius: $card-radius-mobile;
+    max-width: 100vw;
+  }
+  .hero.glass {
+    padding: $card-padding-mobile;
+    border-radius: $card-radius-mobile;
+    max-width: 100vw;
+  }
+  .app-title {
+    font-size: $heading-size-mobile;
+  }
+  .button-primary.big {
+    font-size: $font-size-mobile;
+    padding: 0.8rem 0;
+    border-radius: 12px;
+  }
+  .input-group input, .input-group textarea {
+    font-size: $font-size-mobile-sm;
+    padding: $input-padding-mobile;
+    border-radius: 10px;
+  }
+  .input-icon {
+    font-size: 1em;
+    left: 0.4rem;
+  }
+  .profile-card h2, .pre-session-card h2 {
+    font-size: $heading-size-mobile;
+  }
+  .microcopy {
+    font-size: $font-size-mobile-sm;
+  }
+  .step-indicator {
+    font-size: $font-size-mobile-sm;
+  }
+} 

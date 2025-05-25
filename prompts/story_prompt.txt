@@ -1,0 +1,3 @@
+# Story Generation Prompt
+
+[Insert story generation prompt template here.] 

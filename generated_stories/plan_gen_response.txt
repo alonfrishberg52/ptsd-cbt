@@ -1,0 +1,37 @@
+Plan:
+[{'role': 'system', 'content': [{'type': 'text', 'text': "You are a psychologist treating a PTSD patient using CBT. \nThe scene will be described in 3 parts.\nPart 1 includes the settings - including an plan for a stressful situation.\nIn part 2 the patient arrives to the stressful situation and dwells in it\nIn part 3 there is a positive resolution of the situation.\nYour role is to generate the skeleton for the story of each part, including each trigger and how many words will be used to describe it.\n\nThe plan includes each trigger, how involved the patient is with this trigger (e.g. how far it is from the patient), and the number of words that would be dedicated for the corresponding scene in the story. The plan does not include the SUD level.\nAnxiaty increases as the trigger is closer to the patient.\nAnxiaty increases with the length dedicated to that trigger.\n\nThe plan and story are generated in Hebrew.\nIf a previous plan is provided with a required adjustment to increase or decrease the trigger exposure, edit this plan.\n\nThe plan should NEVER include the traumatic scenes themselves - only triggers from the list of triggers and their SUDs should be used.\nOverall length of each part of the story:\nPart 1: 1000 words. Should focus on planning for the anxiety triggering situation. The plan should come up with some possible real life scenario that would require participating in the triggering situation.\nPart 2: 2000 words. Should describe the situation.\nPart 3: 3000 words. Should gradually decrease the anxiety until resolution with a happy ending. To decrease the anxiety you can use the items that the patient defined as calming him.\nThe plan only indicates the number of words related to the trigger out of the work capacity for that part.\nThe plan for the scenario should be consistent in aspect of the people in the scene (people can't appear and disappear without context). \nThe plan describes the chosen scenario and not the CBT treatmetn itself. \nDo not use any trigger that doesn't appear in the patient's triggers list with the corresponding SUD.\n\n"}]}, {'role': 'user', 'content': [{'type': 'text', 'text': "Patient description:\n{'patient_id': 'אלון פרישברג_29', 'age': '29', 'background': '', 'name': 'אלון פרישברג', 'feedback': [{'patient_id': 'אלון פרישברג_29', 'numeric': 8, 'text': 'אחלה', 'timestamp': datetime.datetime(2025, 5, 24, 9, 56, 12, 124000), '_id': ObjectId('683197bce41bb82ca0cd7ffb')}, {'patient_id': 'אלון פרישברג_29', 'numeric': 8, 'text': 'אחלה', 'timestamp': datetime.datetime(2025, 5, 24, 9, 56, 13, 301000), '_id': ObjectId('683197bde41bb82ca0cd7ffd')}, {'patient_id': 'אלון פרישברג_29', 'numeric': 8, 'text': 'אחלה', 'timestamp': datetime.datetime(2025, 5, 24, 9, 56, 16, 353000), '_id': ObjectId('683197c0e41bb82ca0cd7fff')}, {'patient_id': 'אלון פרישברג_29', 'numeric': 8, 'text': 'אחלה', 'timestamp': datetime.datetime(2025, 5, 24, 9, 56, 17, 161000), '_id': ObjectId('683197c1e41bb82ca0cd8001')}, {'patient_id': 'אלון פרישברג_29', 'numeric': 8, 'text': 'אחלה', 'timestamp': datetime.datetime(2025, 5, 24, 9, 56, 27, 593000), '_id': ObjectId('683197cbe41bb82ca0cd8003')}, {'patient_id': 'אלון פרישברג_29', 'numeric': 3, 'text': 'יס', 'timestamp': datetime.datetime(2025, 5, 24, 10, 2, 15, 230000), '_id': ObjectId('68319927804a3ac4239328e4')}], 'word_count_instruction': 'Please ensure the generated plan and story for this part is approximately 1000 words long.'}\n\nPrevious plan to adjust:\nNone\nPrevious plan SUD level: 50\nPrevious analysis: N/A\nTarget SUD range: N/A\n\nAdjustment needed: None\nGenerate plan for part 1"}]}]
+
+### תכנון לתרחיש עבור חלק 1:
+
+**הגדרה כללית של המצב:**
+אלון פרישברג עומד בפני מצב שמצריך ממנו להתמודד עם טריגרים שגורמים לו לחרדה. הוא מתכנן להשתתף בפגישה משפחתית גדולה בבית הוריו, בה יהיה עליו להתמודד עם סיטואציות שיכולות לעורר חרדה.
+
+**טריגרים וסצנות:**
+
+1. **נסיעה ברכב (SUD 5):**
+   - תיאור: אלון ייסע ברכבו לבית הוריו, נסיעה שעלולה לעורר תחושות אי נוחות וחרדה קלה.
+   - מיקום: מתחיל בנסיעה מהבית.
+   - כמות מילים: 150 מילים.
+
+2. **פגישה עם בני משפחה (SUD 6):**
+   - תיאור: ברגע שאלון מגיע לבית הוריו, הוא פוגש בני משפחה קרובים הממתינים לו בכניסה.
+   - מיקום: פתח הבית.
+   - כמות מילים: 200 מילים.
+
+3. **הישיבה בשולחן האוכל (SUD 7):**
+   - תיאור: אלון מצטרף לארוחת הערב המשפחתית. השיחה סביב השולחן עשויה לעורר תחושות של לחץ וחרדה.
+   - מיקום: שולחן האוכל.
+   - כמות מילים: 250 מילים.
+
+4. **שיחה על חוויות עבר (SUD 8):**
+   - תיאור: במהלך הארוחה, נפתחת שיחה על חוויות עבר שאלון מעדיף להימנע מהן, מה שעלול להעלות את רמת החרדה.
+   - מיקום: שולחן האוכל.
+   - כמות מילים: 300 מילים.
+
+5. **יציאה להפסקה (SUD 4):**
+   - תיאור: אלון מחליט לצאת להפסקה קצרה מחוץ לבית כדי להירגע.
+   - מיקום: חצר הבית.
+   - כמות מילים: 100 מילים.
+
+**סיכום:**
+התרחיש כולל תכנון מפורט לאירוע משפחתי שבו אלון יתמודד עם טריגרים שונים. כל סצנה מתארת את המיקום, ההקשר והחרדה האפשרית שהיא מעוררת, תוך שמירה על רצף הגיוני של התקדמות האירוע.

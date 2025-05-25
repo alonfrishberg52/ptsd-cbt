@@ -1,0 +1,107 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}סיפורים{% endblock %}
+{% block content %}
+<div class="row mt-4">
+    <div class="col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header">סקירת סיפור</div>
+            <div class="card-body">
+                <form id="story-action-form" method="post">
+                    <div class="mb-3">
+                        <label for="patientSelect" class="form-label">בחר מטופל:</label>
+                        <select id="patientSelect" name="patient_id" class="form-select" required>
+                            <option value="">בחר מטופל</option>
+                            {% for patient in patients %}
+                                <option value="{{ patient.patient_id }}">{{ patient.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="storySelect" class="form-label">בחר סיפור (ID):</label>
+                        <select id="storySelect" name="story_id" class="form-select" required>
+                            <option value="">בחר סיפור</option>
+                        </select>
+                    </div>
+                    <div id="storySummary" class="mb-3 text-muted" style="min-height: 60px;">
+                        בחר סיפור להצגה.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-success flex-fill" id="approveBtn">Approve</button>
+                        <button type="button" class="btn btn-danger flex-fill" id="rejectBtn">Reject</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-9 mb-4">
+        <div class="card">
+            <div class="card-header">סיפורים</div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0" id="storiesTable">
+                    <thead>
+                        <tr>
+                            <th>Story ID</th>
+                            <th>תאריך</th>
+                            <th>מטופל</th>
+                            <th>חלק</th>
+                            <th>סיפור</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for story in stories %}
+                        <tr data-patient="{{ story.patient_id }}" data-storyid="{{ story.story_id }}">
+                            <td><span class="badge bg-secondary">{{ story.short_id }}</span></td>
+                            <td>{{ story.timestamp }}</td>
+                            <td>{{ story.patient_id }}</td>
+                            <td>{{ story.stage }}</td>
+                            <td style="max-width: 400px; white-space: pre-line;">{{ story.result.story|truncate(200) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    const stories = {{ stories|tojson }};
+    document.getElementById('patientSelect').onchange = function() {
+        const patientId = this.value;
+        const storySelect = document.getElementById('storySelect');
+        storySelect.innerHTML = '<option value="">בחר סיפור</option>';
+        stories.filter(s => s.patient_id === patientId).forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.story_id;
+            opt.textContent = `ID: ${s.short_id} | חלק ${s.stage} | ${s.timestamp}`;
+            storySelect.appendChild(opt);
+        });
+        document.getElementById('storySummary').textContent = 'בחר סיפור להצגה.';
+    };
+    document.getElementById('storySelect').onchange = function() {
+        const storyId = this.value;
+        const story = stories.find(s => s.story_id === storyId);
+        document.getElementById('storySummary').textContent = story ? story.result.story : 'בחר סיפור להצגה.';
+    };
+    document.getElementById('approveBtn').onclick = function() {
+        handleStoryAction('approve');
+    };
+    document.getElementById('rejectBtn').onclick = function() {
+        handleStoryAction('reject');
+    };
+    function handleStoryAction(action) {
+        const patientId = document.getElementById('patientSelect').value;
+        const storyId = document.getElementById('storySelect').value;
+        if (!patientId || !storyId) {
+            alert('יש לבחור מטופל וסיפור');
+            return;
+        }
+        fetch('/api/story-action', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action, patient_id: patientId, story_id: storyId})
+        }).then(res => res.json()).then(data => {
+            alert(data.message || (action === 'approve' ? 'Story approved!' : 'Story rejected!'));
+        });
+    }
+</script>
+{% endblock %} 

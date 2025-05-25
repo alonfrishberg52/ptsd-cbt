@@ -1,0 +1,3 @@
+# Plan Generation Prompt
+
+[Insert plan generation prompt template here.] 

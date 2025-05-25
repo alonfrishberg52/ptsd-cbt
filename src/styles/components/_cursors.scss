@@ -1,0 +1,88 @@
+@import '../base/variables';
+
+body {
+  cursor: default;
+}
+
+a, button, [role="button"], .interactive {
+  cursor: pointer;
+}
+
+.help-available {
+  cursor: help;
+}
+
+.journal-area {
+  cursor: text;
+}
+
+.draggable-emotion {
+  cursor: grab;
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.breathing-exercise {
+  cursor: default;
+}
+
+.custom-cursor {
+  position: fixed;
+  width: $cursor-default-size;
+  height: $cursor-default-size;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transition: transform $standard-transition $easing-gentle,
+              width $standard-transition $easing-gentle,
+              height $standard-transition $easing-gentle,
+              background-color $standard-transition $easing-gentle;
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background-color: white;
+    border-radius: 50%;
+  }
+}
+
+.cursor-default {
+  width: $cursor-default-size;
+  height: $cursor-default-size;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.cursor-interactive {
+  width: $cursor-active-size;
+  height: $cursor-active-size;
+  background-color: rgba($primary-color, 0.3);
+}
+
+.cursor-calm {
+  width: $cursor-active-size * 1.2;
+  height: $cursor-active-size * 1.2;
+  background-color: rgba($soothing-color, 0.3);
+}
+
+.cursor-caution {
+  width: $cursor-active-size;
+  height: $cursor-active-size;
+  background-color: rgba($warning-color, 0.3);
+}
+
+.using-custom-cursor * {
+  cursor: none !important;
+}
+
+@media (pointer: coarse), (max-width: 600px) {
+  .custom-cursor {
+    display: none !important;
+  }
+} 

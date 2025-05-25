@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+body {
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    background: #f6f7fb;
+    margin: 0;
+    color: #222;
+    direction: rtl;
+}
+
+.main-container {
+    max-width: 700px;
+    margin: 40px auto 0 auto;
+    padding: 0 1rem;
+}
+
+.card {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 4px 24px rgba(35,41,70,0.10);
+    padding: 2.5rem 2rem 2rem 2rem;
+    margin-bottom: 2rem;
+    text-align: right;
+}
+
+.card-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #232946;
+    border-bottom: 3px solid #3b82f6;
+    display: inline-block;
+    padding-bottom: 0.2em;
+}
+
+.label {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 0.7rem;
+    color: #232946;
+    display: block;
+}
+
+textarea {
+    width: 100%;
+    min-height: 180px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 10px;
+    padding: 1.2rem;
+    font-size: 1.1rem;
+    background: #f9fafb;
+    color: #232946;
+    resize: vertical;
+    margin-bottom: 1.5rem;
+    transition: border 0.2s, box-shadow 0.2s;
+}
+textarea:focus {
+    border: 1.5px solid #3b82f6;
+    box-shadow: 0 0 0 2px #3b82f633;
+    outline: none;
+}
+
+.button-primary {
+    width: 100%;
+    background: #2563eb;
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    padding: 1rem 0;
+    margin-top: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(35,41,70,0.07);
+    transition: background 0.2s, box-shadow 0.2s;
+}
+.button-primary:hover {
+    background: #1d4ed8;
+    box-shadow: 0 4px 16px rgba(35,41,70,0.13);
+}
+
+.section-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #232946;
+    margin-bottom: 1rem;
+    margin-top: 0.5rem;
+}
+
+.card-secondary {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(35,41,70,0.07);
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.5rem;
+    text-align: right;
+}
+
+@media (max-width: 600px) {
+    .main-container {
+        padding: 0 0.3rem;
+    }
+    .card, .card-secondary {
+        padding: 1.2rem 0.7rem;
+    }
+    .card-title {
+        font-size: 1.3rem;
+    }
+    .button-primary {
+        font-size: 1rem;
+        padding: 0.7rem 0;
+    }
+} 

@@ -1,0 +1,40 @@
+<!-- Patient Detail Page -->
+<div class="patient-profile-card">
+    <h2 id="patient-name"><i class="fa-solid fa-user"></i> Patient Name</h2>
+    <div class="profile-info">
+        <div><strong>Triggers:</strong> <span id="patient-triggers">--</span></div>
+        <div><strong>Coping Toolkit:</strong> <span id="patient-coping">--</span></div>
+        <div><strong>Goals:</strong> <span id="patient-goals">--</span></div>
+        <div><strong>Language:</strong> <span id="patient-language">--</span></div>
+        <div><strong>Culture:</strong> <span id="patient-culture">--</span></div>
+    </div>
+    <div class="profile-actions">
+        <button class="btn btn-secondary"><i class="fa-solid fa-pen"></i> Edit</button>
+        <button class="btn btn-secondary"><i class="fa-solid fa-envelope"></i> Message</button>
+        <button class="btn btn-secondary"><i class="fa-solid fa-download"></i> Download Report</button>
+    </div>
+</div>
+<div class="tabs">
+    <button class="tab-btn active" data-tab="profile">Profile</button>
+    <button class="tab-btn" data-tab="plans">Exposure Plans</button>
+    <button class="tab-btn" data-tab="stories">Stories</button>
+    <button class="tab-btn" data-tab="sud">SUD Progress</button>
+    <button class="tab-btn" data-tab="audit">Audit Log</button>
+</div>
+<div class="tab-content" id="tab-profile">
+    <!-- Profile details here -->
+</div>
+<div class="tab-content" id="tab-plans" style="display:none;">
+    <!-- Exposure plans here -->
+</div>
+<div class="tab-content" id="tab-stories" style="display:none;">
+    <!-- Stories here -->
+</div>
+<div class="tab-content" id="tab-sud" style="display:none;">
+    <h3>SUD Progression</h3>
+    <div id="sud-chart">[SUD chart will be rendered here]</div>
+</div>
+<div class="tab-content" id="tab-audit" style="display:none;">
+    <!-- Audit log here -->
+</div>
+<script src="/static/dashboard/js/patient.js"></script> 

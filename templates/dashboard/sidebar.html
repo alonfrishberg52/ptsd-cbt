@@ -1,0 +1,33 @@
+<div class="d-flex flex-column flex-shrink-0 p-3 sidebar-gradient text-white" style="width: 220px; min-height: 100vh;">
+    <a href="/dashboard" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+        <span class="fs-4">NarraTIVE</span>
+    </a>
+    <hr>
+    <ul class="nav nav-pills flex-column mb-auto">
+        <li class="nav-item"><a href="/dashboard" class="nav-link text-white sidebar-link"><i class="bi bi-speedometer2 me-2"></i>סיכום</a></li>
+        <li><a href="/dashboard/patients" class="nav-link text-white sidebar-link"><i class="bi bi-people me-2"></i>מטופלים</a></li>
+        <li><a href="/dashboard/plans" class="nav-link text-white sidebar-link"><i class="bi bi-list-check me-2"></i>תוכניות חשיפה</a></li>
+        <li><a href="/dashboard/stories" class="nav-link text-white sidebar-link"><i class="bi bi-book me-2"></i>סיפורים</a></li>
+        <li><a href="/dashboard/audit" class="nav-link text-white sidebar-link"><i class="bi bi-file-earmark-text me-2"></i>לוג</a></li>
+        <li><a href="/dashboard/compliance" class="nav-link text-white sidebar-link"><i class="bi bi-shield-check me-2"></i>תאימות כללים</a></li>
+    </ul>
+    <hr>
+    <div class="mt-auto">
+        <a href="#" class="nav-link text-white sidebar-link"><i class="bi bi-gear me-2"></i>הגדרות</a>
+        <a href="/logout" class="nav-link text-white sidebar-link"><i class="bi bi-box-arrow-right me-2"></i>התנתק</a>
+    </div>
+</div>
+<style>
+.sidebar-gradient {
+    background: linear-gradient(135deg, #232946 80%, #2563eb 100%);
+}
+.sidebar-link {
+    border-radius: 12px;
+    margin-bottom: 0.2rem;
+    transition: background 0.18s, color 0.18s;
+}
+.sidebar-link:hover, .sidebar-link.active {
+    background: #2563eb;
+    color: #fff;
+}
+</style> 

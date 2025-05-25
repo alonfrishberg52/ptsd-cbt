@@ -1,0 +1,30 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}פרופיל מטופל{% endblock %}
+{% block content %}
+<div class="card shadow main-card p-4" style="max-width:700px;">
+    <h2 class="text-center mb-4">{{ patient.name }}</h2>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item"><strong>מין:</strong> {{ patient.gender }}</li>
+        <li class="list-group-item"><strong>תאריך לידה:</strong> {{ patient.birthdate }}</li>
+        <li class="list-group-item"><strong>יישוב:</strong> {{ patient.city }}</li>
+        <li class="list-group-item"><strong>רחוב:</strong> {{ patient.street }}</li>
+        <li class="list-group-item"><strong>מס' בית:</strong> {{ patient.house_number }}</li>
+        <li class="list-group-item"><strong>השכלה:</strong> {{ patient.education }}</li>
+        <li class="list-group-item"><strong>מקצוע/עיסוק:</strong> {{ patient.occupation }}</li>
+        <li class="list-group-item"><strong>תחביבים:</strong> {{ patient.hobbies|join(', ') }}</li>
+        <li class="list-group-item"><strong>חיית מחמד:</strong> {{ 'כן' if patient.pet else 'לא' }}</li>
+        <li class="list-group-item"><strong>תסמיני PTSD:</strong> {{ patient.ptsd_symptoms|join(', ') }}</li>
+        <li class="list-group-item"><strong>תסמינים כלליים:</strong>
+            {% if patient.general_symptoms %}
+                <ul class="mb-0">
+                {% for key, val in patient.general_symptoms.items() %}
+                    <li>{{ {'intrusion':'דחיקות','arousal':'ערנות','thoughts':'מחשבות טורדניות','avoidance':'הימנעויות','mood':'שינוי מצב רוח'}[key] }}: {{ val }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        </li>
+        <li class="list-group-item"><strong>הימנעויות עיקריות:</strong> {{ patient.main_avoidances|join(', ') }}</li>
+    </ul>
+    <a href="{{ url_for('dashboard_patients') }}" class="btn btn-secondary mt-3">חזור לרשימה</a>
+</div>
+{% endblock %} 

@@ -1,0 +1,53 @@
+@import 'variables';
+
+// Base transitions
+@mixin base-transition($properties: all) {
+  transition: $properties $standard-transition $easing-gentle;
+}
+
+// Breathing animation (subtle expansion)
+@keyframes gentle-breathing {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.breathing-element {
+  animation: gentle-breathing 4s $easing-breathing infinite;
+}
+
+// Calming pulse for milestones
+@keyframes calming-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba($soothing-color, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba($soothing-color, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba($soothing-color, 0);
+  }
+}
+
+.milestone-pulse {
+  animation: calming-pulse 2s $easing-calming;
+}
+
+// Gentle fade for transitions between therapeutic content
+@keyframes gentle-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.therapeutic-transition {
+  animation: gentle-fade $slow-transition $easing-calming forwards;
+} 

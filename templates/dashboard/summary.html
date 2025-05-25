@@ -1,0 +1,236 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}סיכום למטפל{% endblock %}
+{% block content %}
+<div class="row g-4 mb-4 mt-3">
+    <div class="col summary-card">
+        <div class="card text-center shadow-sm border-0 clickable-card" style="background:#e3f2fd;cursor:pointer;" onclick="window.location='/dashboard/patients'">
+            <div class="card-body">
+                <i class="bi bi-people-fill display-5 text-primary mb-2"></i>
+                <h5 class="fw-bold">מטופלים</h5>
+                <p class="display-6 mb-0" id="patients-count">{{ total_patients }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col summary-card">
+        <div class="card text-center shadow-sm border-0 clickable-card" style="background:#e8f5e9;cursor:pointer;" onclick="window.location='/dashboard/stories'">
+            <div class="card-body">
+                <i class="bi bi-journal-text display-5 text-success mb-2"></i>
+                <h5 class="fw-bold">סיפורים</h5>
+                <p class="display-6 mb-0" id="stories-count">{{ total_stories }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col summary-card">
+        <div class="card text-center shadow-sm border-0 clickable-card" style="background:#fff3e0;cursor:pointer;" onclick="window.location='#sud-chart-section'">
+            <div class="card-body">
+                <i class="bi bi-emoji-smile display-5 text-warning mb-2"></i>
+                <h5 class="fw-bold">משובים אחרונים</h5>
+                <p class="display-6 mb-0" id="feedback-count">{{ session_feedback|length }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- SUD Trend Chart -->
+<div class="row mb-4" id="sud-chart-section">
+    <div class="col-12">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info text-white">מגמת SUD אחרונה</div>
+            <div class="card-body">
+                <canvas id="sudTrendChart" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row mb-4">
+    <div class="col-md-6 mb-3 mb-md-0">
+        <form class="d-flex" id="patient-search-form" onsubmit="return false;">
+            <input class="form-control me-2" type="search" id="patient-search-input" name="q" placeholder="חפש מטופל לפי שם..." aria-label="Search">
+            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
+        </form>
+        <div id="patient-search-result" class="mt-3"></div>
+    </div>
+    <div class="col-md-6 text-end">
+        <a href="/dashboard/patients/create" class="btn btn-success"><i class="bi bi-person-plus"></i> הוסף מטופל חדש</a>
+    </div>
+</div>
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">משוב SUD מהמטופלים</div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>תאריך</th>
+                            <th>חלק</th>
+                            <th>SUD</th>
+                            <th>הערת מטפל</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in sud_feedback %}
+                        <tr>
+                            <td>{{ row.timestamp }}</td>
+                            <td>{{ row.part_index }}</td>
+                            <td>{{ row.sud_value }}</td>
+                            <td>{{ row.therapist_note or '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-success text-white">משוב מהמפגשים</div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>תאריך</th>
+                            <th>דירוג</th>
+                            <th>תחושות/מחשבות</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fb in session_feedback %}
+                        <tr>
+                            <td>{{ fb.timestamp }}</td>
+                            <td>{{ fb.numeric }}</td>
+                            <td>{{ fb.text }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Recent activity section -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white"><i class="bi bi-clock-history"></i> פעילות אחרונה</div>
+    <div class="card-body p-2">
+        <ul class="mb-0 ps-3">
+            {% for entry in recent_activity %}
+                <li>
+                    {% if entry.type == 'add_patient' %}
+                        נוסף מטופל חדש: <b>{{ entry.patient_name }}</b>
+                    {% elif entry.type == 'update_story' %}
+                        עודכן סיפור עבור <b>{{ entry.patient_name }}</b>
+                    {% elif entry.type == 'feedback' %}
+                        התקבל משוב חדש ממטופל <b>{{ entry.patient_name }}</b>
+                    {% else %}
+                        פעולה: {{ entry.type }} עבור <b>{{ entry.patient_name }}</b>
+                    {% endif %}
+                    <span class="text-muted small">({{ entry.timestamp }})</span>
+                </li>
+            {% else %}
+                <li class="text-muted">אין פעילות אחרונה</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// --- Live SUD Chart & Feedback Refresh ---
+let sudChart;
+async function refreshDashboard() {
+    const res = await fetch('/api/dashboard');
+    const data = await res.json();
+    if (data.status === 'success') {
+        // Update counts
+        document.getElementById('patients-count').textContent = data.summary.total_patients;
+        document.getElementById('stories-count').textContent = data.summary.total_stories;
+        document.getElementById('feedback-count').textContent = data.summary.session_feedback.length;
+        // Update SUD chart
+        const sudData = data.summary.sud_feedback || [];
+        const labels = sudData.map(fb => new Date(fb.timestamp).toLocaleDateString());
+        const values = sudData.map(fb => fb.sud_value);
+        if (!sudChart) {
+            const ctx = document.getElementById('sudTrendChart').getContext('2d');
+            sudChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'SUD',
+                        data: values,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37,99,235,0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        } else {
+            sudChart.data.labels = labels;
+            sudChart.data.datasets[0].data = values;
+            sudChart.update();
+        }
+        // Update feedback tables (SUD + session)
+        const sudTable = document.querySelectorAll('table')[0].querySelector('tbody');
+        sudTable.innerHTML = sudData.map(fb => `<tr><td>${new Date(fb.timestamp).toLocaleString('he-IL')}</td><td>${fb.part_index}</td><td>${fb.sud_value}</td><td>${fb.therapist_note||''}</td></tr>`).join('');
+        const sessionTable = document.querySelectorAll('table')[1].querySelector('tbody');
+        sessionTable.innerHTML = data.summary.session_feedback.map(fb => `<tr><td>${new Date(fb.timestamp).toLocaleString('he-IL')}</td><td>${fb.numeric}</td><td>${fb.text}</td></tr>`).join('');
+        // Toast for new feedback
+        if (window.lastFeedbackCount !== undefined && data.summary.session_feedback.length > window.lastFeedbackCount) {
+            showToast('התקבל משוב חדש!');
+        }
+        window.lastFeedbackCount = data.summary.session_feedback.length;
+    }
+}
+function showToast(msg) {
+    let toast = document.getElementById('dashboard-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'dashboard-toast';
+        toast.style.position = 'fixed';
+        toast.style.bottom = '30px';
+        toast.style.left = '50%';
+        toast.style.transform = 'translateX(-50%)';
+        toast.style.background = '#2563eb';
+        toast.style.color = '#fff';
+        toast.style.padding = '1rem 2.5rem';
+        toast.style.borderRadius = '18px';
+        toast.style.fontSize = '1.2rem';
+        toast.style.boxShadow = '0 4px 24px #2563eb33';
+        toast.style.zIndex = 9999;
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+setInterval(refreshDashboard, 20000); // Auto-refresh every 20s
+refreshDashboard();
+
+document.getElementById('patient-search-form').onsubmit = async function() {
+    const name = document.getElementById('patient-search-input').value.trim();
+    const resultDiv = document.getElementById('patient-search-result');
+    resultDiv.innerHTML = '';
+    if (!name) return;
+    resultDiv.innerHTML = '<div class="text-center text-muted">מחפש...</div>';
+    try {
+        const res = await fetch('/api/patients?q=' + encodeURIComponent(name));
+        const data = await res.json();
+        if (data.status === 'success' && data.patients.length > 0) {
+            const p = data.patients[0];
+            let html = `<table class='table table-bordered mt-2'><tr><th>שם</th><th>גיל</th><th>מין</th><th>יישוב</th><th>פעולות</th></tr>`;
+            html += `<tr><td>${p.name||''}</td><td>${p.age||''}</td><td>${p.gender||''}</td><td>${p.city||''}</td><td><a href='/dashboard/patients/${p.patient_id}' class='btn btn-sm btn-info'>צפה</a></td></tr></table>`;
+            resultDiv.innerHTML = html;
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger">לא נמצא מטופל בשם זה</div>';
+        }
+    } catch (e) {
+        resultDiv.innerHTML = '<div class="alert alert-danger">שגיאה בחיפוש</div>';
+    }
+};
+</script>
+{% endblock %} 

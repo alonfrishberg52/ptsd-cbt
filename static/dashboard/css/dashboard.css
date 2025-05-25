@@ -1,0 +1,287 @@
+body {
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    background: #f6f7fb;
+    margin: 0;
+    color: #222;
+    line-height: 1.7;
+}
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+.sidebar {
+    width: 220px;
+    background: #232946;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    box-shadow: 2px 0 16px #23294611;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.sidebar-header {
+    padding: 1.5rem 1rem 1rem 1rem;
+    font-size: 1.3rem;
+    font-weight: bold;
+    background: #232946;
+    border-bottom: 1px solid #393e6a;
+}
+.sidebar nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.sidebar nav ul li {
+    margin: 0.5rem 0;
+}
+.sidebar nav ul li a {
+    color: #fff;
+    text-decoration: none;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    font-size: 1.05rem;
+    transition: background 0.2s;
+    border-radius: 12px;
+}
+.sidebar nav ul li a:hover, .sidebar nav ul li a.active {
+    background: #2563eb;
+    color: #fff;
+}
+.sidebar nav ul li i {
+    margin-right: 0.7em;
+}
+.main-content {
+    flex: 1;
+    padding: 2rem 3rem;
+    background: #f6f7fb;
+}
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+.quick-stats {
+    display: flex;
+    gap: 1.5rem;
+}
+.stat-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(35,41,70,0.07);
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 120px;
+}
+.stat-card i {
+    font-size: 1.7rem;
+    color: #232946;
+}
+.stat-number {
+    font-size: 1.3rem;
+    font-weight: bold;
+    display: block;
+}
+.stat-label {
+    font-size: 0.95rem;
+    color: #555;
+}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.btn {
+    padding: 0.5rem 1.2rem;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+}
+.btn-primary {
+    background: #232946;
+    color: #fff;
+}
+.btn-primary:hover {
+    background: #393e6a;
+}
+.btn-secondary {
+    background: #eebbc3;
+    color: #232946;
+}
+.btn-secondary:hover {
+    background: #ffd6de;
+}
+.search-filter-bar {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+}
+.search-filter-bar input, .search-filter-bar select {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+.patient-table, .table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(35,41,70,0.09);
+    font-size: 1.08rem;
+}
+.patient-table th, .table th, .patient-table td, .table td {
+    padding: 1.1rem 1rem;
+    text-align: left;
+    vertical-align: middle;
+}
+.patient-table th, .table th {
+    background: #f0f1f6;
+    color: #232946;
+    font-weight: 700;
+    font-size: 1.09rem;
+}
+.patient-table tr, .table tr {
+    border-bottom: 1px solid #eee;
+    transition: background 0.18s;
+}
+.patient-table tr:last-child, .table tr:last-child {
+    border-bottom: none;
+}
+.patient-table td, .table td {
+    color: #333;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.patient-table tr:hover, .table tr:hover {
+    background: #f3f6ff;
+}
+.show-more {
+    color: #2563eb;
+    cursor: pointer;
+    font-size: 0.98em;
+    margin-right: 0.5em;
+}
+.badge {
+    display: inline-block;
+    padding: 0.4em 0.9em;
+    border-radius: 12px;
+    font-size: 1em;
+    font-weight: 600;
+    margin-left: 0.3em;
+}
+.badge-green { background: #22c55e; color: #fff; }
+.badge-yellow { background: #eab308; color: #fff; }
+.badge-red { background: #ef4444; color: #fff; }
+.badge-blue { background: #3b82f6; color: #fff; }
+.avatar {
+    width: 38px; height: 38px; border-radius: 50%; background: #e0e7ff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #2563eb; box-shadow: 0 2px 8px #2563eb22;
+}
+.patient-profile-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(35,41,70,0.07);
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+}
+.profile-info {
+    margin-bottom: 1rem;
+}
+.profile-info div {
+    margin-bottom: 0.4rem;
+}
+.profile-actions {
+    display: flex;
+    gap: 1rem;
+}
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.2rem;
+}
+.tab-btn {
+    background: #eebbc3;
+    color: #232946;
+    border: none;
+    border-radius: 5px 5px 0 0;
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.tab-btn.active, .tab-btn:hover {
+    background: #ffd6de;
+}
+.tab-content {
+    background: #fff;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 2px 8px rgba(35,41,70,0.07);
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+}
+@media (max-width: 900px) {
+    .dashboard-container {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        min-height: unset;
+        flex-direction: row;
+        overflow-x: auto;
+    }
+    .main-content {
+        padding: 1rem;
+    }
+}
+.btn-sm {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.95em;
+    border-radius: 6px;
+    margin-left: 0.2em;
+    margin-right: 0.2em;
+}
+.btn-secondary.btn-sm {
+    background: #e0e7ef;
+    color: #232946;
+    border: none;
+    transition: background 0.2s;
+}
+.btn-secondary.btn-sm:hover {
+    background: #c7d2fe;
+}
+/* Ensure table headers are clickable for sorting */
+.patient-table th.sortable {
+    cursor: pointer;
+    position: relative;
+}
+.patient-table th.sortable:after {
+    content: '\f0dc';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 0.8em;
+    margin-right: 0.3em;
+    color: #bbb;
+}
+/* RTL support for avatars and badges */
+[dir="rtl"] .avatar {
+    margin-left: 0.5em;
+    margin-right: 0;
+}
+[dir="rtl"] .badge {
+    margin-left: 0.3em;
+    margin-right: 0;
+} 

@@ -1,0 +1,44 @@
+@import 'variables';
+
+:focus {
+  outline: $focus-outline-width solid $focus-outline-color;
+  outline-offset: $focus-outline-offset;
+  transition: outline-color $standard-transition $easing-gentle;
+}
+
+:focus:not(:focus-visible) {
+  outline-color: transparent;
+  outline-width: 1px;
+}
+
+:focus-visible {
+  outline-width: $focus-outline-width + 1px;
+  box-shadow: 0 0 0 4px rgba($focus-outline-color, 0.2);
+}
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  padding: 8px;
+  background-color: $primary-color;
+  color: white;
+  z-index: 100;
+  transition: top $standard-transition $easing-gentle;
+  &:focus {
+    top: 0;
+  }
+}
+
+button, a, [role="button"], .interactive {
+  min-height: 48px;
+  min-width: 48px;
+  margin-bottom: $breathing-space-sm;
+}
+
+// Hide custom cursor on touch devices
+@media (pointer: coarse), (max-width: 600px) {
+  .custom-cursor {
+    display: none !important;
+  }
+} 

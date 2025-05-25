@@ -1,0 +1,115 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}{{ 'עריכת מטופל' if edit_mode else 'יצירת מטופל חדש' }}{% endblock %}
+{% block content %}
+<div class="card shadow main-card p-4" style="max-width:600px;">
+    <h2 class="text-center mb-4">{{ 'עריכת מטופל' if edit_mode else 'יצירת מטופל חדש' }}</h2>
+    <form method="post">
+        <div class="row mb-3">
+            <div class="col">
+                <label class="form-label">שם פרטי</label>
+                <input type="text" name="first_name" class="form-control" required value="{{ patient.first_name if patient else '' }}">
+            </div>
+            <div class="col">
+                <label class="form-label">שם משפחה</label>
+                <input type="text" name="last_name" class="form-control" required value="{{ patient.last_name if patient else '' }}">
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">מין</label>
+            <div>
+                <label class="btn btn-outline-primary me-2">
+                    <input type="radio" name="gender" value="זכר" required {% if patient and patient.gender == 'זכר' %}checked{% endif %}> זכר
+                </label>
+                <label class="btn btn-outline-primary me-2">
+                    <input type="radio" name="gender" value="נקבה" {% if patient and patient.gender == 'נקבה' %}checked{% endif %}> נקבה
+                </label>
+                <label class="btn btn-outline-primary">
+                    <input type="radio" name="gender" value="אחר" {% if patient and patient.gender == 'אחר' %}checked{% endif %}> אחר
+                </label>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">תאריך לידה</label>
+            <input type="date" name="birthdate" class="form-control" required value="{{ patient.birthdate if patient else '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">גיל</label>
+            <input type="number" name="age" class="form-control" min="0" max="120" required value="{{ patient.age if patient else '' }}">
+        </div>
+        <div class="row mb-3">
+            <div class="col">
+                <label class="form-label">יישוב</label>
+                <input type="text" name="city" class="form-control" value="{{ patient.city if patient else '' }}">
+            </div>
+            <div class="col">
+                <label class="form-label">רחוב</label>
+                <input type="text" name="street" class="form-control" value="{{ patient.street if patient else '' }}">
+            </div>
+            <div class="col">
+                <label class="form-label">מס' בית</label>
+                <input type="text" name="house_number" class="form-control" value="{{ patient.house_number if patient else '' }}">
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col">
+                <label class="form-label">השכלה</label>
+                <input type="text" name="education" class="form-control" value="{{ patient.education if patient else '' }}">
+            </div>
+            <div class="col">
+                <label class="form-label">מקצוע/עיסוק היום</label>
+                <input type="text" name="occupation" class="form-control" value="{{ patient.occupation if patient else '' }}">
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">תחביבים</label>
+            <div>
+                {% for hobby in ['אופנה','מוזיקה','קולנוע','טיולים','קריאה','צילום','בישול','ספורט','רעש','גירות'] %}
+                <label class="btn btn-outline-secondary me-2 mb-1">
+                    <input type="checkbox" name="hobbies" value="{{ hobby }}" {% if patient and patient.hobbies and hobby in patient.hobbies %}checked{% endif %}> {{ hobby }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">חיית מחמד?</label>
+            <input type="checkbox" name="pet" value="yes" {% if patient and patient.pet %}checked{% endif %}>
+        </div>
+        <!-- PTSD Symptoms -->
+        <div class="mb-3">
+            <label class="form-label">תסמיני PTSD</label>
+            <input type="text" name="ptsd_symptoms" class="form-control" placeholder="הקלד והפרד בפסיקים (,)" value="{{ patient.ptsd_symptoms|join(', ') if patient and patient.ptsd_symptoms else '' }}">
+            <small class="form-text text-muted">הפרד תסמינים בפסיקים (לדוג' פלאשבקים, סיוטים, עוררות יתר...)</small>
+        </div>
+        <!-- General Symptoms (rating) -->
+        <div class="mb-3">
+            <label class="form-label">תסמינים כלליים</label>
+            <div class="row g-2">
+                {% for sym in [
+                    ('intrusion', 'דחיקות'),
+                    ('arousal', 'ערנות'),
+                    ('thoughts', 'מחשבות טורדניות'),
+                    ('avoidance', 'הימנעויות'),
+                    ('mood', 'שינוי מצב רוח')
+                ] %}
+                <div class="col-md-2 col-6 mb-2 text-center">
+                    <label class="fw-bold small mb-1">{{ sym[1] }}</label>
+                    <select name="general_symptoms_{{ sym[0] }}" class="form-select form-select-sm w-100 mx-auto symptom-dropdown" style="max-width:80px;">
+                        <option value="" disabled selected>בחר</option>
+                        {% for i in range(1,6) %}
+                        <option value="{{ i }}" {% if patient and patient.general_symptoms and patient.general_symptoms.get(sym[0]) == i %}selected{% endif %}>{{ i }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <!-- Main Avoidances -->
+        <div class="mb-3">
+            <label class="form-label">הימנעויות עיקריות</label>
+            <input type="text" name="main_avoidances" class="form-control" placeholder="הקלד והפרד בפסיקים (,)" value="{{ patient.main_avoidances|join(', ') if patient and patient.main_avoidances else '' }}">
+            <small class="form-text text-muted">הפרד הימנעויות בפסיקים (לדוג' קניון, נסיעה באוטובוס...)</small>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">{{ 'עדכן מטופל' if edit_mode else 'שמור מטופל' }}</button>
+    </form>
+</div>
+{% endblock %} 
