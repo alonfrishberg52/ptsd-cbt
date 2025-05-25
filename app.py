@@ -4,7 +4,6 @@ Flask application with MongoDB integration and text-to-speech capabilities for P
 
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, flash, url_for
 from flask_pymongo import PyMongo
-from gtts import gTTS
 from datetime import datetime, timedelta
 import os
 from agents.PTSDAgents import OrchestratorAgent, summarize_story_llm
@@ -673,9 +672,10 @@ def session_page():
     stage = scenario_state.get('stage', 1)
     story_doc = mongo.db.stories.find_one({'patient_id': patient_id, 'stage': stage}, sort=[('timestamp', -1)])
     story = story_doc['result']['story'] if story_doc else None
+    audio_file = story_doc['result'].get('audio_file') if story_doc and 'result' in story_doc else None
     sud = scenario_state['sud_history'][-1] if 'sud_history' in scenario_state and scenario_state['sud_history'] else None
     session_complete = stage > 3
-    return render_template('session.html', story=story, sud=sud, stage=stage, session_complete=session_complete)
+    return render_template('session.html', story=story, sud=sud, stage=stage, session_complete=session_complete, audio_file=audio_file)
 
 @app.route('/feedback', methods=['GET', 'POST'])
 def feedback():

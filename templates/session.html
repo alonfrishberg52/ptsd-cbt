@@ -97,23 +97,93 @@ body {
         <!-- Only show feedback button if session is complete and there is no story -->
         <a href="/feedback" class="btn btn-success w-100 mt-3" style="font-size:1.15rem;">סיים מפגש והעבר משוב</a>
     {% endif %}
-    <!-- ElevenLabs TTS UI -->
-    <div class="card mt-4 p-3">
-      <h5 style="font-family:'Assistant',Arial,sans-serif;">האזן לסיפור שלך</h5>
-      <div class="row mb-2">
-        <div class="col">
-          <label for="voice-select" class="form-label">בחר קול</label>
-          <select id="voice-select" class="form-select"></select>
+    {% if audio_file %}
+      <div class="card mt-4 p-3">
+        <h5 style="font-family:'Assistant',Arial,sans-serif;">האזן לסיפור שלך</h5>
+        <div id="custom-audio-player" class="d-flex align-items-center gap-3">
+          <button id="play-pause-btn" class="btn btn-primary" style="width:48px;height:48px;font-size:1.5rem;">
+            <span id="play-icon">▶️</span><span id="pause-icon" style="display:none;">⏸️</span>
+          </button>
+          <span id="audio-status" class="text-muted" style="font-size:1.1rem;">מוכן להשמעה</span>
+          <label for="audio-speed" class="ms-3 mb-0" style="font-size:1rem;">מהירות:</label>
+          <input type="range" id="audio-speed" min="0.5" max="2.0" step="0.05" value="1.0" style="width:140px;">
+          <span id="audio-speed-value">1.0x</span>
         </div>
-        <div class="col">
-          <label for="speed-slider" class="form-label">קצב דיבור: <span id="speed-value">1.0</span>x</label>
-          <input type="range" id="speed-slider" min="0.7" max="1.3" step="0.05" value="1.0" class="form-range">
-        </div>
+        <audio id="story-audio" src="/static/audio/{{ audio_file }}" preload="auto"></audio>
+        <div class="text-muted mt-2">הסיפור הופק אוטומטית בקול בעברית.</div>
       </div>
-      <button id="play-story-btn" class="btn btn-primary w-100 mb-2">נגן סיפור</button>
-      <audio id="story-audio" controls style="width:100%"></audio>
-      <div id="tts-error" class="text-danger mt-2"></div>
-    </div>
+      <script>
+        const audio = document.getElementById('story-audio');
+        const playBtn = document.getElementById('play-pause-btn');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const status = document.getElementById('audio-status');
+        const speedSlider = document.getElementById('audio-speed');
+        const speedValue = document.getElementById('audio-speed-value');
+        let isPlaying = false;
+        playBtn.onclick = function() {
+          if (audio.paused) {
+            audio.play();
+          } else {
+            audio.pause();
+          }
+        };
+        audio.onplay = function() {
+          isPlaying = true;
+          playIcon.style.display = 'none';
+          pauseIcon.style.display = '';
+          status.textContent = 'מנגן...';
+        };
+        audio.onpause = function() {
+          isPlaying = false;
+          playIcon.style.display = '';
+          pauseIcon.style.display = 'none';
+          status.textContent = 'מוכן להשמעה';
+        };
+        audio.onended = function() {
+          isPlaying = false;
+          playIcon.style.display = '';
+          pauseIcon.style.display = 'none';
+          status.textContent = 'הסתיים';
+          audio.currentTime = 0;
+        };
+        // Prevent seeking
+        audio.addEventListener('seeking', function() {
+          if (Math.abs(audio.currentTime - 0) > 0.1 && !audio.paused) {
+            audio.currentTime = 0;
+          }
+        });
+        // Hide default controls
+        audio.controls = false;
+        // Speed control
+        speedSlider.oninput = function() {
+          audio.playbackRate = parseFloat(this.value);
+          speedValue.textContent = this.value + 'x';
+        };
+        // Prevent keyboard seeking
+        audio.addEventListener('keydown', function(e) {
+          if ([37,39].includes(e.keyCode)) e.preventDefault();
+        });
+      </script>
+    {% else %}
+      <!-- ElevenLabs TTS UI fallback -->
+      <div class="card mt-4 p-3">
+        <h5 style="font-family:'Assistant',Arial,sans-serif;">האזן לסיפור שלך</h5>
+        <div class="row mb-2">
+          <div class="col">
+            <label for="voice-select" class="form-label">בחר קול</label>
+            <select id="voice-select" class="form-select"></select>
+          </div>
+          <div class="col">
+            <label for="speed-slider" class="form-label">קצב דיבור: <span id="speed-value">1.0</span>x</label>
+            <input type="range" id="speed-slider" min="0.7" max="1.3" step="0.05" value="1.0" class="form-range">
+          </div>
+        </div>
+        <button id="play-story-btn" class="btn btn-primary w-100 mb-2">נגן סיפור</button>
+        <audio id="story-audio" controls style="width:100%"></audio>
+        <div id="tts-error" class="text-danger mt-2"></div>
+      </div>
+    {% endif %}
 </div>
 <div id="loader-overlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:rgba(255,255,255,0.7);">
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
@@ -140,7 +210,7 @@ if (sudSlider) {
     sudSliderValue.textContent = this.value;
   };
   sudSlider.value = 0;
-  sudSliderValue.textContent = 0;
+  sudSlider.value = 0;
 }
 if (form) {
     form.onsubmit = async function(e) {

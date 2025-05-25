@@ -4,6 +4,9 @@ from services.narrative_coherence_service import NarrativeCoherenceService
 from services.internal_dialogue_service import InternalDialogueService
 from services.rule_compliance_service import RuleComplianceService
 from services.hebrew_service import HebrewService
+import uuid
+from gtts import gTTS
+import os
 
 class StoryGenerationService:
     """
@@ -106,6 +109,15 @@ class StoryGenerationService:
         rule_feedback = self.rule_service.aggregate_rule_validation(story)
         hebrew_feedback = self.hebrew_service.validate_hebrew_language(story)
 
+        # Convert story to speech
+        audio_file = None
+        try:
+            tts = gTTS(story, lang='iw')
+            audio_file = f"story_{uuid.uuid4().hex}.mp3"
+            audio_path = os.path.join('static', 'audio', audio_file)
+            tts.save(audio_path)
+        except Exception as e:
+            audio_file = None  # Optionally log error
         return {
             "plan": plan,
             "evaluation": {
@@ -113,6 +125,7 @@ class StoryGenerationService:
                 "explanation": explanation
             },
             "story": story,
+            "audio_file": audio_file,
             "habituation_feedback": habituation_feedback,
             "narrative_feedback": narrative_feedback,
             "dialogue_feedback": dialogue_feedback,

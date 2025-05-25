@@ -1,145 +1,153 @@
 {% extends 'dashboard/base.html' %}
 {% block title %}סיכום למטפל{% endblock %}
 {% block content %}
-<div class="row g-4 mb-4 mt-3">
-    <div class="col summary-card">
-        <div class="card text-center shadow-sm border-0 clickable-card" style="background:#e3f2fd;cursor:pointer;" onclick="window.location='/dashboard/patients'">
-            <div class="card-body">
-                <i class="bi bi-people-fill display-5 text-primary mb-2"></i>
-                <h5 class="fw-bold">מטופלים</h5>
-                <p class="display-6 mb-0" id="patients-count">{{ total_patients }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col summary-card">
-        <div class="card text-center shadow-sm border-0 clickable-card" style="background:#e8f5e9;cursor:pointer;" onclick="window.location='/dashboard/stories'">
-            <div class="card-body">
-                <i class="bi bi-journal-text display-5 text-success mb-2"></i>
-                <h5 class="fw-bold">סיפורים</h5>
-                <p class="display-6 mb-0" id="stories-count">{{ total_stories }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col summary-card">
-        <div class="card text-center shadow-sm border-0 clickable-card" style="background:#fff3e0;cursor:pointer;" onclick="window.location='#sud-chart-section'">
-            <div class="card-body">
-                <i class="bi bi-emoji-smile display-5 text-warning mb-2"></i>
-                <h5 class="fw-bold">משובים אחרונים</h5>
-                <p class="display-6 mb-0" id="feedback-count">{{ session_feedback|length }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col summary-card">
-        <div class="card text-center shadow-sm border-0 clickable-card" style="background:#f3e5f5;cursor:pointer;" onclick="window.location='/dashboard/patients_overview'">
-            <div class="card-body">
-                <i class="bi bi-graph-up-arrow display-5 text-purple mb-2"></i>
-                <h5 class="fw-bold">סקירת התקדמות</h5>
-                <p class="display-6 mb-0"><i class="bi bi-arrow-bar-up"></i></p>
-            </div>
-        </div>
-    </div>
+<!-- Modern animated background -->
+<div class="animated-bg">
+  <div class="bubble" style="width:80px;height:80px;left:10vw;animation-delay:0s;background:#2563eb;"></div>
+  <div class="bubble" style="width:60px;height:60px;left:70vw;animation-delay:2s;background:#00bfae;"></div>
+  <div class="bubble" style="width:100px;height:100px;left:40vw;animation-delay:4s;background:#b2ebf2;"></div>
+  <div class="bubble" style="width:50px;height:50px;left:80vw;animation-delay:6s;background:#2563eb;"></div>
+  <div class="bubble" style="width:90px;height:90px;left:20vw;animation-delay:8s;background:#00bfae;"></div>
 </div>
-<!-- SUD Trend Chart -->
-<div class="row mb-4" id="sud-chart-section">
+<div class="fade-in">
+  <div class="dashboard-header text-center mb-4">
+    <img src="/static/img/logo.png" alt="NarraTIVE Logo" style="width:70px;height:70px;border-radius:50%;box-shadow:0 2px 12px #2563eb33;">
+    <div class="display-4 fw-bold mt-2" style="color:#2563eb;letter-spacing:1px;">NarraTIVE Dashboard</div>
+    <div class="lead text-muted mb-2">מערכת ניהול מתקדמת לסיפורי CBT וחשיפה</div>
+    <div class="microcopy text-secondary mb-3" style="font-size:1.1rem;">ברוך הבא! כאן תוכל לעקוב, לנתח ולשפר את תהליך הטיפול שלך.</div>
+  </div>
+  <div class="row g-4 mb-4 mt-3">
+    {% for card in [
+      {'bg':'#e3f2fd','icon':'people-fill','title':'מטופלים','count':total_patients,'color':'text-primary','link':'/dashboard/patients'},
+      {'bg':'#e8f5e9','icon':'journal-text','title':'סיפורים','count':total_stories,'color':'text-success','link':'/dashboard/stories'},
+      {'bg':'#fff3e0','icon':'emoji-smile','title':'משובים אחרונים','count':session_feedback|length,'color':'text-warning','link':'#sud-chart-section'},
+      {'bg':'#f3e5f5','icon':'graph-up-arrow','title':'סקירת התקדמות','count':'','color':'text-purple','link':'/dashboard/patients_overview'}
+    ] %}
+    <div class="col summary-card">
+      <div class="card glass-card text-center shadow-lg border-0 clickable-card fade-in" style="background:{{ card.bg }};cursor:pointer;backdrop-filter:blur(6px);" onclick="window.location='{{ card.link }}'">
+        <div class="card-body">
+          <i class="bi bi-{{ card.icon }} display-5 {{ card.color }} mb-2"></i>
+          <h5 class="fw-bold">{{ card.title }}</h5>
+          <p class="display-6 mb-0 modern-num" id="{{ card.title|lower|replace(' ','-') }}-count">{{ card.count }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    <!-- Floating action button -->
+    <a href="/dashboard/patients/create" class="fab-add-patient btn btn-success shadow"><i class="bi bi-person-plus"></i></a>
+  </div>
+  <!-- SUD Trend Chart -->
+  <div class="row mb-4 fade-in">
     <div class="col-12">
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-info text-white">מגמת SUD אחרונה</div>
-            <div class="card-body">
-                <canvas id="sudTrendChart" height="80"></canvas>
-            </div>
+      <div class="card shadow-lg mb-4 glass-card">
+        <div class="card-header bg-gradient-info text-white fw-bold" style="background:linear-gradient(90deg,#2563eb 60%,#00bfae 100%);font-size:1.2rem;">מגמת SUD אחרונה</div>
+        <div class="card-body">
+          <canvas id="sudTrendChart" height="80"></canvas>
         </div>
+      </div>
     </div>
-</div>
-<div class="row mb-4">
+  </div>
+  <!-- Patient search and add -->
+  <div class="row mb-4 fade-in">
     <div class="col-md-6 mb-3 mb-md-0">
-        <form class="d-flex" id="patient-search-form" onsubmit="return false;">
-            <input class="form-control me-2" type="search" id="patient-search-input" name="q" placeholder="חפש מטופל לפי שם..." aria-label="Search">
-            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
-        </form>
-        <div id="patient-search-result" class="mt-3"></div>
+      <form class="d-flex" id="patient-search-form" onsubmit="return false;">
+        <input class="form-control me-2" type="search" id="patient-search-input" name="q" placeholder="חפש מטופל לפי שם..." aria-label="Search">
+        <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
+      </form>
+      <div id="patient-search-result" class="mt-3"></div>
     </div>
-    <div class="col-md-6 text-end">
-        <a href="/dashboard/patients/create" class="btn btn-success"><i class="bi bi-person-plus"></i> הוסף מטופל חדש</a>
-    </div>
-</div>
-<div class="row g-4">
+  </div>
+  <div class="row g-4 fade-in">
     <div class="col-md-6">
-        <div class="card mb-4 shadow-sm">
-            <div class="card-header bg-primary text-white">משוב SUD מהמטופלים</div>
-            <div class="card-body p-0">
-                <table class="table table-striped mb-0">
-                    <thead>
-                        <tr>
-                            <th>תאריך</th>
-                            <th>חלק</th>
-                            <th>SUD</th>
-                            <th>הערת מטפל</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in sud_feedback %}
-                        <tr>
-                            <td>{{ row.timestamp }}</td>
-                            <td>{{ row.part_index }}</td>
-                            <td>{{ row.sud_value }}</td>
-                            <td>{{ row.therapist_note or '' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+      <div class="card mb-4 shadow glass-card">
+        <div class="card-header bg-primary text-white">משוב SUD מהמטופלים</div>
+        <div class="card-body p-0">
+          <table class="table table-striped mb-0">
+            <thead>
+              <tr>
+                <th>תאריך</th>
+                <th>חלק</th>
+                <th>SUD</th>
+                <th>הערת מטפל</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in sud_feedback %}
+              <tr>
+                <td>{{ row.timestamp }}</td>
+                <td>{{ row.part_index }}</td>
+                <td>{{ row.sud_value }}</td>
+                <td>{{ row.therapist_note or '' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+      </div>
     </div>
     <div class="col-md-6">
-        <div class="card mb-4 shadow-sm">
-            <div class="card-header bg-success text-white">משוב מהמפגשים</div>
-            <div class="card-body p-0">
-                <table class="table table-striped mb-0">
-                    <thead>
-                        <tr>
-                            <th>תאריך</th>
-                            <th>דירוג</th>
-                            <th>תחושות/מחשבות</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for fb in session_feedback %}
-                        <tr>
-                            <td>{{ fb.timestamp }}</td>
-                            <td>{{ fb.numeric }}</td>
-                            <td>{{ fb.text }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+      <div class="card mb-4 shadow glass-card">
+        <div class="card-header bg-success text-white">משוב מהמפגשים</div>
+        <div class="card-body p-0">
+          <table class="table table-striped mb-0">
+            <thead>
+              <tr>
+                <th>תאריך</th>
+                <th>דירוג</th>
+                <th>תחושות/מחשבות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fb in session_feedback %}
+              <tr>
+                <td>{{ fb.timestamp }}</td>
+                <td>{{ fb.numeric }}</td>
+                <td>{{ fb.text }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+      </div>
     </div>
-</div>
-<!-- Recent activity section -->
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-info text-white"><i class="bi bi-clock-history"></i> פעילות אחרונה</div>
+  </div>
+  <!-- Recent activity section -->
+  <div class="card shadow-sm mb-4 glass-card fade-in">
+    <div class="card-header bg-info text-white"><i class="bi bi-clock-history text-warning"></i> פעילות אחרונה</div>
     <div class="card-body p-2">
-        <ul class="mb-0 ps-3">
-            {% for entry in recent_activity %}
-                <li>
-                    {% if entry.type == 'add_patient' %}
-                        נוסף מטופל חדש: <b>{{ entry.patient_name }}</b>
-                    {% elif entry.type == 'update_story' %}
-                        עודכן סיפור עבור <b>{{ entry.patient_name }}</b>
-                    {% elif entry.type == 'feedback' %}
-                        התקבל משוב חדש ממטופל <b>{{ entry.patient_name }}</b>
-                    {% else %}
-                        פעולה: {{ entry.type }} עבור <b>{{ entry.patient_name }}</b>
-                    {% endif %}
-                    <span class="text-muted small">({{ entry.timestamp }})</span>
-                </li>
-            {% else %}
-                <li class="text-muted">אין פעילות אחרונה</li>
-            {% endfor %}
-        </ul>
+      <ul class="mb-0 ps-3">
+        {% for entry in recent_activity %}
+        <li>
+          {% if entry.type == 'add_patient' %}
+          <span class="text-success"><i class="bi bi-person-plus"></i></span> נוסף מטופל חדש: <b>{{ entry.patient_name }}</b>
+          {% elif entry.type == 'update_story' %}
+          <span class="text-primary"><i class="bi bi-journal-text"></i></span> עודכן סיפור עבור <b>{{ entry.patient_name }}</b>
+          {% elif entry.type == 'feedback' %}
+          <span class="text-warning"><i class="bi bi-emoji-smile"></i></span> התקבל משוב חדש ממטופל <b>{{ entry.patient_name }}</b>
+          {% else %}
+          <span class="text-info"><i class="bi bi-info-circle"></i></span> פעולה: {{ entry.type }} עבור <b>{{ entry.patient_name }}</b>
+          {% endif %}
+          <span class="text-muted small">({{ entry.timestamp }})</span>
+        </li>
+        {% else %}
+        <li class="text-muted">אין פעילות אחרונה</li>
+        {% endfor %}
+      </ul>
     </div>
+  </div>
 </div>
+<!-- Modern styles and animation -->
+<style>
+.animated-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }
+.bubble { position: absolute; border-radius: 50%; opacity: 0.13; animation: float 14s infinite linear; }
+@keyframes float { 0% { transform: translateY(100vh) scale(1);} 100% { transform: translateY(-10vh) scale(1.2);} }
+.fade-in { animation: fadeIn 1.2s cubic-bezier(.4,0,.2,1); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(30px);} to { opacity: 1; transform: none;} }
+.glass-card { background: rgba(255,255,255,0.85)!important; backdrop-filter: blur(6px); border-radius: 22px!important; box-shadow: 0 4px 32px #23294613!important; }
+.fab-add-patient { position: fixed; bottom: 38px; left: 38px; z-index: 10; border-radius: 50%; width: 62px; height: 62px; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+.modern-num { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; letter-spacing: 1px; }
+.bg-gradient-info { background: linear-gradient(90deg,#2563eb 60%,#00bfae 100%)!important; }
+</style>
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
