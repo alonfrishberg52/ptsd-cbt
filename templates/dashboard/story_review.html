@@ -1,96 +1,304 @@
 {% extends 'dashboard/base.html' %}
 {% block title %}סיפורים{% endblock %}
 {% block content %}
-<div class="row mt-4">
-    <div class="col-lg-3 mb-4">
-        <div class="card h-100">
-            <div class="card-header">סקירת סיפור</div>
-            <div class="card-body">
-                <form id="story-action-form" method="post">
-                    <div class="mb-3">
-                        <label for="patientSelect" class="form-label">בחר מטופל:</label>
-                        <select id="patientSelect" name="patient_id" class="form-select" required>
-                            <option value="">בחר מטופל</option>
-                            {% for patient in patients %}
-                                <option value="{{ patient.patient_id }}">{{ patient.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="storySelect" class="form-label">בחר סיפור (ID):</label>
-                        <select id="storySelect" name="story_id" class="form-select" required>
-                            <option value="">בחר סיפור</option>
-                        </select>
-                    </div>
-                    <div id="storySummary" class="mb-3 text-muted" style="min-height: 60px;">
-                        בחר סיפור להצגה.
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-success flex-fill" id="approveBtn">Approve</button>
-                        <button type="button" class="btn btn-danger flex-fill" id="rejectBtn">Reject</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+<style>
+    .container-fluid { max-width: 100vw; padding: 0 2vw; }
+    .stories-table { width: 100%; font-size: 1.15em; }
+    .stories-table th, .stories-table td { vertical-align: middle; padding: 1em 0.8em; }
+    .stories-table tbody tr:hover { background: #f8f9fa; }
+    .stories-table .llm-summary-label { font-weight: bold; color: #0d6efd; display: flex; align-items: center; gap: 0.3em; }
+    .stories-table .llm-summary { font-size: 1em; margin-bottom: 0.5em; }
+    .stories-table .action-btns { display: flex; gap: 0.7em; justify-content: center; align-items: center; background: #f6f8fa; border-radius: 2em; padding: 0.4em 0.2em; }
+    .stories-table .action-btns .btn { border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; padding: 0; font-size: 1.3em; box-shadow: none; transition: box-shadow 0.2s, background 0.2s; }
+    .stories-table .action-btns .btn-success { background: #e6f9ed; border: none; color: #198754; }
+    .stories-table .action-btns .btn-danger { background: #fbeaea; border: none; color: #dc3545; }
+    .stories-table .action-btns .btn-warning { background: #fff8e1; border: none; color: #ffc107; }
+    .stories-table .action-btns .btn-outline-primary { background: #eaf1fb; border: none; color: #0d6efd; }
+    .stories-table .action-btns .btn-outline-info { background: #eaf7fb; border: none; color: #0dcaf0; }
+    .stories-table .action-btns .btn:hover { box-shadow: 0 0 0 3px #0d6efd33; background: #f0f4fa; }
+    .badge-status { font-size: 1.1em; display: flex; align-items: center; gap: 0.2em; transition: background 0.3s; min-width: 100px; justify-content: center; }
+    .status-loader { display: inline-flex; align-items: center; gap: 0.5em; font-size: 1em; color: #ffc107; }
+    .row-loader { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #fff8; display: flex; align-items: center; justify-content: center; z-index: 2; border-radius: 0.5em; }
+    .stories-table tr { position: relative; }
+    .sidebar-sticky { position: sticky; top: 1.5em; background: #fff; border-radius: 1em; box-shadow: 0 2px 8px #0001; padding: 1.5em 1em; }
+    @media (max-width: 991px) { .sidebar-sticky { position: static; box-shadow: none; } .stories-table th, .stories-table td { font-size: 1em; padding: 0.7em 0.3em; } }
+    .badge-check {
+        font-size: 1em;
+        padding: 0.1em 0.5em;
+        border-radius: 1em;
+        margin: 0 0.08em;
+        vertical-align: middle;
+        background: #fff;
+        border: 1.5px solid #e0e0e0;
+        box-shadow: 0 1px 4px #0001;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2em;
+        min-width: 28px;
+        min-height: 28px;
+        justify-content: center;
+        transition: box-shadow 0.2s, border 0.2s;
+    }
+    .badge-check.bg-success {
+        border-color: #3fc56b;
+        background: #eafaf1;
+        color: #1e824c;
+    }
+    .badge-check.bg-warning {
+        border-color: #ffd966;
+        background: #fffbe6;
+        color: #b38600;
+    }
+    .badge-check.bg-danger {
+        border-color: #ff6b6b;
+        background: #ffeaea;
+        color: #c0392b;
+    }
+    .badge-check:hover {
+        box-shadow: 0 2px 8px #0d6efd22;
+        border-width: 2px;
+    }
+    .badge-check .label { display: none; }
+    .summary-row th, .summary-row td { background: #f8f9fa; font-weight: bold; text-align: center; border-bottom: 2px solid #dee2e6; }
+    .filter-bar { margin-bottom: 1em; display: flex; gap: 1em; align-items: center; flex-wrap: wrap; }
+    .filter-btn { border: none; background: #e9ecef; color: #333; border-radius: 1em; padding: 0.4em 1.2em; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .filter-btn.active, .filter-btn:hover { background: #0d6efd; color: #fff; }
+    @media (max-width: 991px) {
+        .stories-table th, .stories-table td { font-size: 0.95em; padding: 0.5em 0.3em; }
+        .filter-bar { flex-direction: column; align-items: flex-start; gap: 0.5em; }
+    }
+    @media (max-width: 767px) {
+        .stories-table th, .stories-table td { font-size: 0.9em; padding: 0.4em 0.2em; }
+        .action-btns { flex-direction: column; gap: 0.3em; }
+        .badge-check { font-size: 0.9em; padding: 0.08em 0.3em; min-width: 22px; min-height: 22px; }
+    }
+    .table-responsive { overflow-x: auto; }
+    .friendly-summary-card {
+        background: #f8fafc;
+        border-radius: 0.7em;
+        padding: 0.7em 1em;
+        margin: 0.3em 0 0.2em 0;
+        font-size: 1.08em;
+        color: #222;
+        box-shadow: 0 2px 8px #0001;
+        font-family: 'Segoe UI', 'Arial', sans-serif;
+        line-height: 1.6;
+        word-break: break-word;
+    }
+</style>
+<div class="container-fluid">
+    <div class="filter-bar">
+        <span>סנן:</span>
+        <button class="filter-btn active" data-filter="all">הכל</button>
+        <button class="filter-btn" data-filter="fail">רק כשלונות</button>
+        <button class="filter-btn" data-filter="warn">רק אזהרות</button>
     </div>
-    <div class="col-lg-9 mb-4">
-        <div class="card">
-            <div class="card-header">סיפורים</div>
-            <div class="card-body p-0">
-                <table class="table table-striped mb-0" id="storiesTable">
-                    <thead>
-                        <tr>
-                            <th>Story ID</th>
-                            <th>תאריך</th>
-                            <th>מטופל</th>
-                            <th>חלק</th>
-                            <th>סיפור</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for story in stories %}
-                        <tr data-patient="{{ story.patient_id }}" data-storyid="{{ story.story_id }}">
-                            <td><span class="badge bg-secondary">{{ story.short_id }}</span></td>
-                            <td>{{ story.timestamp }}</td>
-                            <td>{{ story.patient_id }}</td>
-                            <td>{{ story.stage }}</td>
-                            <td style="max-width: 400px; white-space: pre-line;">{{ story.result.story|truncate(200) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div class="table-responsive">
+    <table class="table table-striped stories-table mb-0">
+        <thead>
+            <tr>
+                <th>Story ID</th>
+                <th>תאריך</th>
+                <th>מטופל</th>
+                <th>חלק</th>
+                <th>סטטוס</th>
+                <th>פעולות</th>
+            </tr>
+        </thead>
+        <tbody id="stories-tbody">
+        {% for story in stories %}
+        <tr data-patient="{{ story.patient_id }}" data-storyid="{{ story.story_id }}">
+            <td><span class="badge bg-secondary">{{ story.short_id }}</span></td>
+            <td>{{ story.timestamp }}</td>
+            <td>{{ story.patient_id }}</td>
+            <td>{{ story.stage }}</td>
+            <td>
+                <div class="status-badge-wrap" id="status-badge-{{ story.story_id }}">
+                    {% if story.status == 'approved' %}<span class="badge bg-success badge-status"><i class="bi bi-check-circle"></i> מאושר</span>{% elif story.status == 'rejected' %}<span class="badge bg-danger badge-status"><i class="bi bi-x-circle"></i> נדחה</span>{% elif story.status == 'regenerated' %}<span class="badge bg-warning text-dark badge-status"><i class="bi bi-arrow-repeat"></i> נוצר מחדש</span>{% else %}<span class="badge bg-secondary badge-status"><i class="bi bi-hourglass-split"></i> ממתין</span>{% endif %}
+                </div>
+            </td>
+            <td class="action-btns">
+                <button type="button" class="btn btn-outline-primary btn-sm view-story-btn" data-bs-toggle="tooltip" title="הצג סיפור מלא" data-storyid="{{ story.story_id }}"><i class="bi bi-eye"></i></button>
+                <button type="button" class="btn btn-outline-info btn-sm view-feedback-btn" data-bs-toggle="tooltip" title="הצג דוח בקרה" data-storyid="{{ story.story_id }}"><i class="bi bi-clipboard-check"></i></button>
+                <button type="button" class="btn btn-warning btn-sm regenerate-btn" data-bs-toggle="tooltip" title="צור מחדש" data-storyid="{{ story.story_id }}"><i class="bi bi-arrow-repeat"></i></button>
+                <button type="button" class="btn btn-danger btn-sm reject-btn" data-bs-toggle="tooltip" title="דחה" data-storyid="{{ story.story_id }}"><i class="bi bi-x"></i></button>
+                <button type="button" class="btn btn-success btn-sm approve-btn" data-bs-toggle="tooltip" title="אשר" data-storyid="{{ story.story_id }}"><i class="bi bi-check"></i></button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
     </div>
 </div>
+<!-- Story Modal -->
+<div class="modal fade" id="storyModal" tabindex="-1" aria-labelledby="storyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="storyModalLabel">סיפור מלא</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="storyModalBody"></div>
+    </div>
+  </div>
+</div>
+<!-- Compliance Modal -->
+<div class="modal fade" id="complianceModal" tabindex="-1" aria-labelledby="complianceModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="complianceModalLabel">דוח כללים</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="complianceModalBody"></div>
+    </div>
+  </div>
+</div>
+<!-- Feedback Modal -->
+<div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="feedbackModalLabel">דוח בקרה מלא</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="feedbackModalBody"></div>
+    </div>
+  </div>
+</div>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const stories = {{ stories|tojson }};
-    document.getElementById('patientSelect').onchange = function() {
-        const patientId = this.value;
-        const storySelect = document.getElementById('storySelect');
-        storySelect.innerHTML = '<option value="">בחר סיפור</option>';
-        stories.filter(s => s.patient_id === patientId).forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s.story_id;
-            opt.textContent = `ID: ${s.short_id} | חלק ${s.stage} | ${s.timestamp}`;
-            storySelect.appendChild(opt);
+    function setRowLoading(storyId, loading, text) {
+        let row = document.querySelector(`tr[data-storyid='${storyId}']`);
+        if (!row) {
+            // fallback: find closest tr from any action button
+            const btn = document.querySelector(`[data-storyid='${storyId}']`);
+            if (btn) row = btn.closest('tr');
+        }
+        if (!row) return;
+        let loader = row.querySelector('.row-loader');
+        if (loading) {
+            if (!loader) {
+                loader = document.createElement('div');
+                loader.className = 'row-loader';
+                loader.innerHTML = `<span class='spinner-border spinner-border-sm'></span> <span style='margin-right:8px;'>${text||''}</span>`;
+                row.appendChild(loader);
+            } else {
+                loader.style.display = 'flex';
+                loader.querySelector('span:last-child').textContent = text||'';
+            }
+            row.querySelectorAll('button').forEach(b => b.disabled = true);
+        } else {
+            if (loader) loader.style.display = 'none';
+            row.querySelectorAll('button').forEach(b => b.disabled = false);
+        }
+    }
+    function bindActionButtons() {
+        document.querySelectorAll('.approve-btn').forEach(btn => {
+            btn.onclick = function() {
+                const storyId = this.dataset.storyid;
+                setRowLoading(storyId, true, 'מאשר...');
+                fetch('/api/story-action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'approve', story_id: storyId})
+                }).then(res => res.json()).then(data => {
+                    setRowLoading(storyId, false);
+                    const statusBadge = document.getElementById('status-badge-' + storyId);
+                    statusBadge.innerHTML = '<span class="badge bg-success badge-status"><i class="bi bi-check-circle"></i> מאושר</span>';
+                }).catch(() => {
+                    setRowLoading(storyId, false);
+                    alert('שגיאה באישור הסיפור');
+                });
+            };
         });
-        document.getElementById('storySummary').textContent = 'בחר סיפור להצגה.';
-    };
-    document.getElementById('storySelect').onchange = function() {
-        const storyId = this.value;
-        const story = stories.find(s => s.story_id === storyId);
-        document.getElementById('storySummary').textContent = story ? story.result.story : 'בחר סיפור להצגה.';
-    };
-    document.getElementById('approveBtn').onclick = function() {
-        handleStoryAction('approve');
-    };
-    document.getElementById('rejectBtn').onclick = function() {
-        handleStoryAction('reject');
-    };
-    function handleStoryAction(action) {
+        document.querySelectorAll('.reject-btn').forEach(btn => {
+            btn.onclick = function() {
+                const storyId = this.dataset.storyid;
+                setRowLoading(storyId, true, 'דוחה...');
+                fetch('/api/story-action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'reject', story_id: storyId})
+                }).then(res => res.json()).then(data => {
+                    setRowLoading(storyId, false);
+                    const statusBadge = document.getElementById('status-badge-' + storyId);
+                    statusBadge.innerHTML = '<span class="badge bg-danger badge-status"><i class="bi bi-x-circle"></i> נדחה</span>';
+                }).catch(() => {
+                    setRowLoading(storyId, false);
+                    alert('שגיאה בדחיית הסיפור');
+                });
+            };
+        });
+        document.querySelectorAll('.regenerate-btn').forEach(btn => {
+            btn.onclick = function() {
+                const storyId = this.dataset.storyid;
+                setRowLoading(storyId, true, 'יוצר סיפור מחדש...');
+                fetch('/api/story-action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'regenerate', story_id: storyId})
+                }).then(res => res.json()).then(data => {
+                    setRowLoading(storyId, false);
+                    const statusBadge = document.getElementById('status-badge-' + storyId);
+                    statusBadge.innerHTML = '<span class="badge bg-warning text-dark badge-status"><i class="bi bi-arrow-repeat"></i> נוצר מחדש</span>';
+                }).catch(() => {
+                    setRowLoading(storyId, false);
+                    alert('שגיאה ביצירת סיפור מחדש');
+                });
+            };
+        });
+    }
+    bindActionButtons();
+    document.querySelectorAll('.view-story-btn').forEach(btn => {
+        btn.onclick = function() {
+            const storyId = this.dataset.storyid;
+            const story = stories.find(s => s.story_id === storyId);
+            document.getElementById('storyModalBody').textContent = story ? story.result.story : '';
+            var modal = new bootstrap.Modal(document.getElementById('storyModal'));
+            modal.show();
+        };
+    });
+    document.querySelectorAll('.view-compliance-btn').forEach(btn => {
+        btn.onclick = function() {
+            const storyId = this.dataset.storyid;
+            const story = stories.find(s => s.story_id === storyId);
+            let html = '';
+            if (story && story.compliance) {
+                html += `<strong>סיכום:</strong> ${story.compliance.summary}<br><ul>`;
+                for (const rule of story.compliance.details) {
+                    html += `<li>${rule.rule}: ${rule.status} - ${rule.details}</li>`;
+                }
+                html += '</ul>';
+            }
+            document.getElementById('complianceModalBody').innerHTML = html;
+            var modal = new bootstrap.Modal(document.getElementById('complianceModal'));
+            modal.show();
+        };
+    });
+    document.querySelectorAll('.view-feedback-btn').forEach(btn => {
+        btn.onclick = function() {
+            const storyId = this.dataset.storyid;
+            const story = stories.find(s => s.story_id === storyId);
+            let html = '';
+            html += `<strong>Habituation:</strong> ${story.habituation_feedback || 'לא זמין'}<br>`;
+            html += `<strong>Narrative:</strong> ${story.narrative_feedback || 'לא זמין'}<br>`;
+            html += `<strong>Dialogue:</strong> ${story.dialogue_feedback || 'לא זמין'}<br>`;
+            html += `<strong>Rule Compliance:</strong> ${story.rule_feedback || 'לא זמין'}<br>`;
+            html += `<strong>Hebrew:</strong> ${story.hebrew_feedback || 'לא זמין'}<br>`;
+            if (story.rule_report) {
+                html += `<hr><strong>Rule Report:</strong> ${story.rule_report.summary}`;
+            }
+            document.getElementById('feedbackModalBody').innerHTML = html;
+            var modal = new bootstrap.Modal(document.getElementById('feedbackModal'));
+            modal.show();
+        };
+    });
+    function handleStoryAction(action, storyIdOverride) {
         const patientId = document.getElementById('patientSelect').value;
-        const storyId = document.getElementById('storySelect').value;
+        const storyId = storyIdOverride || document.getElementById('storySelect').value;
         if (!patientId || !storyId) {
             alert('יש לבחור מטופל וסיפור');
             return;
@@ -101,7 +309,47 @@
             body: JSON.stringify({action, patient_id: patientId, story_id: storyId})
         }).then(res => res.json()).then(data => {
             alert(data.message || (action === 'approve' ? 'Story approved!' : 'Story rejected!'));
+            location.reload();
         });
     }
+    function updateSummaryAndFilter() {
+        const rows = Array.from(document.querySelectorAll('#stories-tbody tr'));
+        const checks = ['habituation', 'narrative', 'dialogue', 'rule', 'hebrew'];
+        const sum = {habituation: [0,0,0], narrative: [0,0,0], dialogue: [0,0,0], rule: [0,0,0], hebrew: [0,0,0]};
+        rows.forEach(row => {
+            checks.forEach((c, i) => {
+                const badge = row.querySelector(`td:nth-child(${7+i}) .badge-check`);
+                if (!badge) return;
+                if (badge.classList.contains('bg-success')) sum[c][0]++;
+                else if (badge.classList.contains('bg-warning')) sum[c][1]++;
+                else sum[c][2]++;
+            });
+        });
+        document.getElementById('sum-hab').innerHTML = `<span class='badge-check bg-success'>✔️ ${sum.habituation[0]}</span> <span class='badge-check bg-warning text-dark'>⚠️ ${sum.habituation[1]}</span> <span class='badge-check bg-danger'>❌ ${sum.habituation[2]}</span>`;
+        document.getElementById('sum-narr').innerHTML = `<span class='badge-check bg-success'>✔️ ${sum.narrative[0]}</span> <span class='badge-check bg-warning text-dark'>⚠️ ${sum.narrative[1]}</span> <span class='badge-check bg-danger'>❌ ${sum.narrative[2]}</span>`;
+        document.getElementById('sum-dialog').innerHTML = `<span class='badge-check bg-success'>✔️ ${sum.dialogue[0]}</span> <span class='badge-check bg-warning text-dark'>⚠️ ${sum.dialogue[1]}</span> <span class='badge-check bg-danger'>❌ ${sum.dialogue[2]}</span>`;
+        document.getElementById('sum-rule').innerHTML = `<span class='badge-check bg-success'>✔️ ${sum.rule[0]}</span> <span class='badge-check bg-warning text-dark'>⚠️ ${sum.rule[1]}</span> <span class='badge-check bg-danger'>❌ ${sum.rule[2]}</span>`;
+        document.getElementById('sum-hebrew').innerHTML = `<span class='badge-check bg-success'>✔️ ${sum.hebrew[0]}</span> <span class='badge-check bg-warning text-dark'>⚠️ ${sum.hebrew[1]}</span> <span class='badge-check bg-danger'>❌ ${sum.hebrew[2]}</span>`;
+    }
+    updateSummaryAndFilter();
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.onclick = function() {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const filter = btn.dataset.filter;
+            const rows = Array.from(document.querySelectorAll('#stories-tbody tr'));
+            rows.forEach(row => {
+                let show = true;
+                if (filter === 'fail') show = row.querySelectorAll('.badge-check.bg-danger').length > 0;
+                if (filter === 'warn') show = row.querySelectorAll('.badge-check.bg-warning').length > 0;
+                row.style.display = show ? '' : 'none';
+            });
+            // Re-bind actions after filtering
+            bindActionButtons();
+        };
+    });
+    // Tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) { return new bootstrap.Tooltip(tooltipTriggerEl); });
 </script>
 {% endblock %} 

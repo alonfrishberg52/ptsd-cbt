@@ -1,9 +1,17 @@
 {% extends 'dashboard/base.html' %}
 {% block title %}פרופיל מטופל{% endblock %}
 {% block content %}
-<div class="card shadow main-card p-4" style="max-width:700px;">
+<div class="card shadow main-card p-4" style="max-width:800px;">
     <h2 class="text-center mb-4">{{ patient.name }}</h2>
-    <ul class="list-group list-group-flush">
+    {% if patient.general_info %}
+    <div class="card mb-3">
+        <div class="card-header bg-info text-white fw-bold">מידע כללי על המטופל</div>
+        <div class="card-body">
+            <div style="white-space: pre-line;">{{ patient.general_info }}</div>
+        </div>
+    </div>
+    {% endif %}
+    <ul class="list-group list-group-flush mb-4">
         <li class="list-group-item"><strong>מין:</strong> {{ patient.gender }}</li>
         <li class="list-group-item"><strong>תאריך לידה:</strong> {{ patient.birthdate }}</li>
         <li class="list-group-item"><strong>יישוב:</strong> {{ patient.city }}</li>
@@ -13,18 +21,108 @@
         <li class="list-group-item"><strong>מקצוע/עיסוק:</strong> {{ patient.occupation }}</li>
         <li class="list-group-item"><strong>תחביבים:</strong> {{ patient.hobbies|join(', ') }}</li>
         <li class="list-group-item"><strong>חיית מחמד:</strong> {{ 'כן' if patient.pet else 'לא' }}</li>
-        <li class="list-group-item"><strong>תסמיני PTSD:</strong> {{ patient.ptsd_symptoms|join(', ') }}</li>
-        <li class="list-group-item"><strong>תסמינים כלליים:</strong>
-            {% if patient.general_symptoms %}
-                <ul class="mb-0">
-                {% for key, val in patient.general_symptoms.items() %}
-                    <li>{{ {'intrusion':'דחיקות','arousal':'ערנות','thoughts':'מחשבות טורדניות','avoidance':'הימנעויות','mood':'שינוי מצב רוח'}[key] }}: {{ val }}</li>
-                {% endfor %}
-                </ul>
-            {% endif %}
-        </li>
-        <li class="list-group-item"><strong>הימנעויות עיקריות:</strong> {{ patient.main_avoidances|join(', ') }}</li>
     </ul>
+    <div class="card mb-3">
+        <div class="card-header bg-primary text-white fw-bold">מידע קליני</div>
+        <div class="card-body p-4">
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <h6 class="fw-bold mb-2">תסמיני PTSD</h6>
+                    <div>{{ patient.ptsd_symptoms|join(', ') }}</div>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-2">הימנעויות עיקריות</h6>
+                    <div>{{ patient.main_avoidances|join(', ') }}</div>
+                </div>
+            </div>
+            <hr>
+            <div class="mb-3">
+                <h6 class="fw-bold mb-2">תסמינים כלליים</h6>
+                {% if patient.general_symptoms %}
+                    <ul class="mb-0 ps-3">
+                    {% for key, val in patient.general_symptoms.items() %}
+                        <li>{{ {'intrusion':'דחיקות','arousal':'ערנות','thoughts':'מחשבות טורדניות','avoidance':'הימנעויות','mood':'שינוי מצב רוח'}[key] }}: {{ val }}</li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <span class="text-muted">לא צוינו</span>
+                {% endif %}
+            </div>
+            <hr>
+            <div class="mb-3">
+                <h6 class="fw-bold mb-2">תסמינים סומטיים של חרדה</h6>
+                {% if patient.somatic %}
+                    <ul class="mb-0 ps-3">
+                    {% for cat, syms in patient.somatic.items() %}
+                        <li><strong>{{ cat }}:</strong> {{ syms|join(', ') }}</li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <span class="text-muted">לא צוינו</span>
+                {% endif %}
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <h6 class="fw-bold mb-2">PCL-5 <span class="badge bg-info text-dark ms-2">סך הכל: {{ patient.pcl5|sum if patient.pcl5 else 0 }}</span></h6>
+                    {% set pcl5_questions = [
+                        'חווית מצוקה או חוסר נוחות כתוצאה מזיכרונות מטרידים של האירוע',
+                        'חלומות מטרידים על האירוע',
+                        'תחושת חוויה מחודשת של האירוע',
+                        'מצוקה חזקה כאשר משהו מזכיר את האירוע',
+                        'תגובות גופניות כאשר משהו מזכיר את האירוע',
+                        'הימנעות ממחשבות או רגשות הקשורים לאירוע',
+                        'הימנעות מאנשים, מקומות או פעילויות המזכירים את האירוע',
+                        'קושי לזכור חלקים מהאירוע',
+                        'אמונות שליליות על עצמך, אחרים או העולם',
+                        'האשמה עצמית או האשמת אחרים',
+                        'רגשות שליליים חזקים (פחד, כעס, אשמה, בושה)',
+                        'אובדן עניין בפעילויות',
+                        'תחושת ניתוק מאנשים אחרים',
+                        'קושי לחוות רגשות חיוביים',
+                        'קושי להירדם או שינה לא רגועה',
+                        'קושי להתרכז',
+                        'עצבנות או התפרצויות כעס',
+                        'התנהגות מסוכנת או הרסנית',
+                        'דריכות יתר או זהירות מוגזמת',
+                        'בהלה קלה או תגובת בהלה'
+                    ] %}
+                    {% if patient.pcl5 %}
+                        <ul class="mb-0 ps-3">
+                        {% for q in pcl5_questions %}
+                            <li>{{ q }} <span class="fw-bold">({{ patient.pcl5[loop.index0] }})</span></li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <span class="text-muted">לא מולא</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-2">PHQ-9 <span class="badge bg-info text-dark ms-2">סך הכל: {{ patient.phq9|sum if patient.phq9 else 0 }}</span></h6>
+                    {% set phq9_questions = [
+                        'חוסר עניין או הנאה בפעילויות',
+                        'תחושת דיכאון, עצבות או ייאוש',
+                        'קשיי שינה או שינה מרובה',
+                        'תחושת עייפות או חוסר אנרגיה',
+                        'תיאבון ירוד או אכילה מופרזת',
+                        'תחושת כישלון או אכזבה מעצמך',
+                        'קושי להתרכז',
+                        'תנועה או דיבור איטיים/מהירים מהרגיל',
+                        'מחשבות על פגיעה עצמית או מוות'
+                    ] %}
+                    {% if patient.phq9 %}
+                        <ul class="mb-0 ps-3">
+                        {% for q in phq9_questions %}
+                            <li>{{ q }} <span class="fw-bold">({{ patient.phq9[loop.index0] }})</span></li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <span class="text-muted">לא מולא</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
     <a href="{{ url_for('dashboard_patients') }}" class="btn btn-secondary mt-3">חזור לרשימה</a>
 </div>
 {% endblock %} 

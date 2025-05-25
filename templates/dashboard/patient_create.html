@@ -1,7 +1,7 @@
 {% extends 'dashboard/base.html' %}
 {% block title %}{{ 'עריכת מטופל' if edit_mode else 'יצירת מטופל חדש' }}{% endblock %}
 {% block content %}
-<div class="card shadow main-card p-4" style="max-width:600px;">
+<div class="card shadow main-card p-4" style="max-width:900px;">
     <h2 class="text-center mb-4">{{ 'עריכת מטופל' if edit_mode else 'יצירת מטופל חדש' }}</h2>
     <form method="post">
         <div class="row mb-3">
@@ -109,7 +109,243 @@
             <input type="text" name="main_avoidances" class="form-control" placeholder="הקלד והפרד בפסיקים (,)" value="{{ patient.main_avoidances|join(', ') if patient and patient.main_avoidances else '' }}">
             <small class="form-text text-muted">הפרד הימנעויות בפסיקים (לדוג' קניון, נסיעה באוטובוס...)</small>
         </div>
+        <!-- SUD Input -->
+        <!-- (Removed SUD value and note fields) -->
+        <!-- Triggers Table -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">טריגרים (Trigger) ודירוג SUD</label>
+            <table class="table table-bordered table-sm align-middle" id="triggers-table">
+                <thead><tr><th>טריגר</th><th>SUD (0-100)</th><th></th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addTriggerRow()">הוסף טריגר</button>
+        </div>
+        <!-- Avoidance Situations Table -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">סיטואציות של הימנעות ודירוג SUD</label>
+            <table class="table table-bordered table-sm align-middle" id="avoidance-table">
+                <thead><tr><th>סיטואציה</th><th>SUD (0-100)</th><th></th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addAvoidanceRow()">הוסף סיטואציה</button>
+        </div>
+        <!-- Somatic Symptoms of Anxiety -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">תסמינים סומטיים של חרדה</label>
+            <div class="accordion" id="somaticAccordion">
+                <!-- סומטי כללי -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingGeneral">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGeneral" aria-expanded="true" aria-controls="collapseGeneral">סומטי כללי</button>
+                    </h2>
+                    <div id="collapseGeneral" class="accordion-collapse collapse show" aria-labelledby="headingGeneral" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['מתח','חולשה','עייפות','פיהוקים','שיהוקים','אנחות','תחושת עילפון'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[סומטי כללי][]" value="{{ sym }}" id="gen{{ loop.index }}"><label class="form-check-label" for="gen{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- פה ולסת -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingMouth">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMouth" aria-expanded="false" aria-controls="collapseMouth">פה ולסת</button>
+                    </h2>
+                    <div id="collapseMouth" class="accordion-collapse collapse" aria-labelledby="headingMouth" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['פה יבש','חריקת שיניים','כאבים בלסת'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[פה ולסת][]" value="{{ sym }}" id="mouth{{ loop.index }}"><label class="form-check-label" for="mouth{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- נוירולוגי/אף אוזן גרון -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingNeuro">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNeuro" aria-expanded="false" aria-controls="collapseNeuro">נוירולוגי / אף אוזן גרון</button>
+                    </h2>
+                    <div id="collapseNeuro" class="accordion-collapse collapse" aria-labelledby="headingNeuro" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['עקצוצים','נימולים','סחרחורות','כאבי ראש','מיגרנות','טיניטוס (טנטון באוזניים)','רגישות לרעשים','טשטוש ראיה','גלי קור וחום','קול לא יציב','גמגום'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[נוירולוגי/אף אוזן גרון][]" value="{{ sym }}" id="neuro{{ loop.index }}"><label class="form-check-label" for="neuro{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- מוסקלוסקלטלי (שריר שלד) -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingMuscle">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMuscle" aria-expanded="false" aria-controls="collapseMuscle">מוסקלוסקלטלי (שריר שלד)</button>
+                    </h2>
+                    <div id="collapseMuscle" class="accordion-collapse collapse" aria-labelledby="headingMuscle" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['כאבי שרירים','קישיון שרירים'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[מוסקלוסקלטלי][]" value="{{ sym }}" id="muscle{{ loop.index }}"><label class="form-check-label" for="muscle{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- דרמטולוגי (עור) -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingDerm">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDerm" aria-expanded="false" aria-controls="collapseDerm">דרמטולוגי (עור)</button>
+                    </h2>
+                    <div id="collapseDerm" class="accordion-collapse collapse" aria-labelledby="headingDerm" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['הסמקה','חיוורון','הזעה','גרד','פריחה חוזרת','צמרמורת שיער'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[דרמטולוגי][]" value="{{ sym }}" id="derm{{ loop.index }}"><label class="form-check-label" for="derm{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- קרדיו-וסקולרי (לב וכלי דם) -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingCardio">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCardio" aria-expanded="false" aria-controls="collapseCardio">קרדיו-וסקולרי (לב וכלי דם)</button>
+                    </h2>
+                    <div id="collapseCardio" class="accordion-collapse collapse" aria-labelledby="headingCardio" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['קצב לב מהיר','דופק חזק','תעוקת חזה','תחושת איבוד פעימה'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[קרדיו-וסקולרי][]" value="{{ sym }}" id="cardio{{ loop.index }}"><label class="form-check-label" for="cardio{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- ריספרטורי (נשימתי) -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingResp">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseResp" aria-expanded="false" aria-controls="collapseResp">ריספרטורי (נשימתי)</button>
+                    </h2>
+                    <div id="collapseResp" class="accordion-collapse collapse" aria-labelledby="headingResp" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['קוצר נשימה','תחושת מחנק','צורך באוויר','נשימה מהירה'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[ריספרטורי][]" value="{{ sym }}" id="resp{{ loop.index }}"><label class="form-check-label" for="resp{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- גסטרואינטסטינלים (מערכת העיכול) -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingGI">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGI" aria-expanded="false" aria-controls="collapseGI">גסטרואינטסטינלים (מערכת העיכול)</button>
+                    </h2>
+                    <div id="collapseGI" class="accordion-collapse collapse" aria-labelledby="headingGI" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['קשיי בליעה','גוש בגרון','צרבת','כאבי בטן','בחילות','הקאות','קרקורים בבטן','שלשולים','עצירות','ירידה במשקל'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[גסטרואינטסטינלים][]" value="{{ sym }}" id="gi{{ loop.index }}"><label class="form-check-label" for="gi{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- גניטואורינרים (מערכת השתן והמין) -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingGU">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGU" aria-expanded="false" aria-controls="collapseGU">גניטואורינרים (מערכת השתן והמין)</button>
+                    </h2>
+                    <div id="collapseGU" class="accordion-collapse collapse" aria-labelledby="headingGU" data-bs-parent="#somaticAccordion">
+                        <div class="accordion-body">
+                            {% for sym in ['תכיפות שתן','דחיפות שתן','אצירת שתן','היעדר ווסת','ווסת לא סדירה','דימום וסתי כבד','חוסר חשק מיני','אימפטונציה'] %}
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="somatic[גניטואורינרים][]" value="{{ sym }}" id="gu{{ loop.index }}"><label class="form-check-label" for="gu{{ loop.index }}">{{ sym }}</label></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- PCL-5 Questionnaire -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">שאלון PCL-5 </label>
+            <div class="row g-2">
+                {% for i, q in [
+                    (1, 'חווית מצוקה או חוסר נוחות כתוצאה מזיכרונות מטרידים של האירוע'),
+                    (2, 'חלומות מטרידים על האירוע'),
+                    (3, 'תחושת חוויה מחודשת של האירוע'),
+                    (4, 'מצוקה חזקה כאשר משהו מזכיר את האירוע'),
+                    (5, 'תגובות גופניות כאשר משהו מזכיר את האירוע'),
+                    (6, 'הימנעות ממחשבות או רגשות הקשורים לאירוע'),
+                    (7, 'הימנעות מאנשים, מקומות או פעילויות המזכירים את האירוע'),
+                    (8, 'קושי לזכור חלקים מהאירוע'),
+                    (9, 'אמונות שליליות על עצמך, אחרים או העולם'),
+                    (10, 'האשמה עצמית או האשמת אחרים'),
+                    (11, 'רגשות שליליים חזקים (פחד, כעס, אשמה, בושה)'),
+                    (12, 'אובדן עניין בפעילויות'),
+                    (13, 'תחושת ניתוק מאנשים אחרים'),
+                    (14, 'קושי לחוות רגשות חיוביים'),
+                    (15, 'קושי להירדם או שינה לא רגועה'),
+                    (16, 'קושי להתרכז'),
+                    (17, 'עצבנות או התפרצויות כעס'),
+                    (18, 'התנהגות מסוכנת או הרסנית'),
+                    (19, 'דריכות יתר או זהירות מוגזמת'),
+                    (20, 'בהלה קלה או תגובת בהלה')
+                ] %}
+                <div class="col-md-6 mb-2">
+                    <label class="small">{{ q }}</label>
+                    <select name="pcl5_{{ i }}" class="form-select form-select-sm w-100 mx-auto" style="max-width:80px;">
+                        {% for v in range(0,5) %}
+                        <option value="{{ v }}" {% if patient and patient.pcl5 and patient.pcl5[i-1] == v %}selected{% endif %}>{{ v }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <!-- PHQ-9 Depression Questionnaire -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">שאלון דיכאון PHQ-9</label>
+            <div class="row g-2">
+                {% for i, q in [
+                    (1, 'חוסר עניין או הנאה בפעילויות'),
+                    (2, 'תחושת דיכאון, עצבות או ייאוש'),
+                    (3, 'קשיי שינה או שינה מרובה'),
+                    (4, 'תחושת עייפות או חוסר אנרגיה'),
+                    (5, 'תיאבון ירוד או אכילה מופרזת'),
+                    (6, 'תחושת כישלון או אכזבה מעצמך'),
+                    (7, 'קושי להתרכז'),
+                    (8, 'תנועה או דיבור איטיים/מהירים מהרגיל'),
+                    (9, 'מחשבות על פגיעה עצמית או מוות')
+                ] %}
+                <div class="col-md-6 mb-2">
+                    <label class="small">{{ q }}</label>
+                    <select name="phq9_{{ i }}" class="form-select form-select-sm w-100 mx-auto" style="max-width:80px;">
+                        {% for v in range(0,4) %}
+                        <option value="{{ v }}" {% if patient and patient.phq9 and patient.phq9[i-1] == v %}selected{% endif %}>{{ v }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">מידע כללי על המטופל (לא חובה)</label>
+            <textarea name="general_info" class="form-control" rows="3" placeholder="הערות חופשיות, מידע רקע, דגשים טיפוליים וכו'.">{{ patient.general_info if patient and patient.general_info else '' }}</textarea>
+        </div>
         <button type="submit" class="btn btn-primary w-100">{{ 'עדכן מטופל' if edit_mode else 'שמור מטופל' }}</button>
     </form>
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Enable tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+  return new bootstrap.Tooltip(tooltipTriggerEl)
+});
+// Dynamic triggers table
+function addTriggerRow(val1 = '', val2 = '') {
+    const tbody = document.querySelector('#triggers-table tbody');
+    const row = document.createElement('tr');
+    row.innerHTML = `<td><input type="text" name="triggers[]" class="form-control form-control-sm" value="${val1}"></td><td><input type="number" name="triggers_sud[]" class="form-control form-control-sm" min="0" max="100" step="10" value="${val2}"></td><td><button type="button" class="btn btn-danger btn-sm py-0 px-2" style="font-size:0.9em;line-height:1.2;" onclick="this.closest('tr').remove()">✕</button></td>`;
+    tbody.appendChild(row);
+}
+function addAvoidanceRow(val1 = '', val2 = '') {
+    const tbody = document.querySelector('#avoidance-table tbody');
+    const row = document.createElement('tr');
+    row.innerHTML = `<td><input type="text" name="avoidances[]" class="form-control form-control-sm" value="${val1}"></td><td><input type="number" name="avoidances_sud[]" class="form-control form-control-sm" min="0" max="100" step="10" value="${val2}"></td><td><button type="button" class="btn btn-danger btn-sm py-0 px-2" style="font-size:0.9em;line-height:1.2;" onclick="this.closest('tr').remove()">✕</button></td>`;
+    tbody.appendChild(row);
+}
+// Add one row by default
+if (document.querySelector('#triggers-table tbody').children.length === 0) addTriggerRow();
+if (document.querySelector('#avoidance-table tbody').children.length === 0) addAvoidanceRow();
+</script>
 {% endblock %} 
