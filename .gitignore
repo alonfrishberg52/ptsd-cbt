@@ -14,7 +14,7 @@ __pycache__/
 mindshift-tts-*.json
 /static/audio/*
 /static/dashboard/img/*
-*.json
+# *.json
 
 # VSCode/Cursor
 .vscode/
