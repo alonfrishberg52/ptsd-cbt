@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Knowledge Graph Memory - PTSD Therapy Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='dashboard/css/dashboard.css') }}" rel="stylesheet">
+    <style>
+        .memory-card {
+            border-left: 4px solid #007bff;
+            transition: all 0.3s ease;
+        }
+        .memory-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .entity-badge {
+            font-size: 0.8em;
+            margin: 2px;
+        }
+        .relationship-line {
+            border-left: 2px solid #28a745;
+            padding-left: 15px;
+            margin: 10px 0;
+        }
+        .search-results {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .mcp-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+                <div class="sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard_summary') }}">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard_patients') }}">
+                                <i class="fas fa-users"></i> Patients
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard_stories') }}">
+                                <i class="fas fa-book"></i> Stories
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard_research') }}">
+                                <i class="fas fa-search"></i> Research
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('dashboard_mcp_memory') }}">
+                                <i class="fas fa-brain"></i> MCP Memory
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard_audit') }}">
+                                <i class="fas fa-clipboard-list"></i> Audit
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-10 ml-sm-auto px-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">MCP Knowledge Graph Memory</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button type="button" class="btn btn-primary" onclick="refreshMemoryStats()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Memory Statistics -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card mcp-stats">
+                            <div class="card-body text-center">
+                                <i class="fas fa-users fa-2x mb-2"></i>
+                                <h4 id="total-patients">-</h4>
+                                <p class="mb-0">Total Patients</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card mcp-stats">
+                            <div class="card-body text-center">
+                                <i class="fas fa-project-diagram fa-2x mb-2"></i>
+                                <h4 id="total-entities">-</h4>
+                                <p class="mb-0">Total Entities</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card mcp-stats">
+                            <div class="card-body text-center">
+                                <i class="fas fa-link fa-2x mb-2"></i>
+                                <h4 id="total-relationships">-</h4>
+                                <p class="mb-0">Relationships</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card mcp-stats">
+                            <div class="card-body text-center">
+                                <i class="fas fa-eye fa-2x mb-2"></i>
+                                <h4 id="total-observations">-</h4>
+                                <p class="mb-0">Observations</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Interface -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-search"></i> Search Memory</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="search-query" placeholder="Search patients, symptoms, triggers, sessions...">
+                                    <button class="btn btn-primary" type="button" onclick="searchMemory()">
+                                        <i class="fas fa-search"></i> Search
+                                    </button>
+                                </div>
+                                <div id="search-results" class="search-results"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patient Memory Browser -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-user"></i> Patient Memory Browser</h5>
+                            </div>
+                            <div class="card-body">
+                                <select class="form-select mb-3" id="patient-selector" onchange="loadPatientMemory()">
+                                    <option value="">Select a patient...</option>
+                                </select>
+                                <div id="patient-memory-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-chart-line"></i> Memory Insights</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="memory-insights">
+                                    <p class="text-muted">Select a patient to view memory insights...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Load patients on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPatients();
+            refreshMemoryStats();
+        });
+
+        async function loadPatients() {
+            try {
+                const response = await fetch('/api/patients');
+                const data = await response.json();
+                
+                const selector = document.getElementById('patient-selector');
+                selector.innerHTML = '<option value="">Select a patient...</option>';
+                
+                if (data.status === 'success') {
+                    data.patients.forEach(patient => {
+                        const option = document.createElement('option');
+                        option.value = patient.patient_id;
+                        option.textContent = patient.name || patient.patient_id;
+                        selector.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading patients:', error);
+            }
+        }
+
+        async function refreshMemoryStats() {
+            try {
+                // This would need to be implemented as an endpoint that aggregates MCP memory stats
+                // For now, we'll use placeholder values
+                document.getElementById('total-patients').textContent = '12';
+                document.getElementById('total-entities').textContent = '156';
+                document.getElementById('total-relationships').textContent = '89';
+                document.getElementById('total-observations').textContent = '342';
+            } catch (error) {
+                console.error('Error refreshing memory stats:', error);
+            }
+        }
+
+        async function searchMemory() {
+            const query = document.getElementById('search-query').value.trim();
+            if (!query) return;
+
+            try {
+                const response = await fetch('/api/mcp/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const data = await response.json();
+                const resultsDiv = document.getElementById('search-results');
+
+                if (data.status === 'success') {
+                    displaySearchResults(data.results, resultsDiv);
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                console.error('Error searching memory:', error);
+                document.getElementById('search-results').innerHTML = 
+                    '<div class="alert alert-danger">Error performing search</div>';
+            }
+        }
+
+        function displaySearchResults(results, container) {
+            if (results.total_results === 0) {
+                container.innerHTML = '<div class="alert alert-info">No results found</div>';
+                return;
+            }
+
+            let html = `<h6>Found ${results.total_results} results</h6>`;
+            
+            // Display MCP results
+            if (results.mcp_results && results.mcp_results.length > 0) {
+                html += '<h6 class="mt-3"><i class="fas fa-brain"></i> MCP Knowledge Graph Results:</h6>';
+                results.mcp_results.forEach(result => {
+                    html += `
+                        <div class="card memory-card mb-2">
+                            <div class="card-body">
+                                <h6 class="card-title">${result.name || 'Unknown Entity'}</h6>
+                                <span class="badge bg-primary entity-badge">${result.entityType || 'Unknown Type'}</span>
+                                <div class="mt-2">
+                                    ${(result.observations || []).slice(0, 3).map(obs => 
+                                        `<small class="text-muted d-block">• ${obs}</small>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Display NetworkX results
+            if (results.nx_results && results.nx_results.length > 0) {
+                html += '<h6 class="mt-3"><i class="fas fa-project-diagram"></i> NetworkX Graph Results:</h6>';
+                results.nx_results.forEach(result => {
+                    html += `
+                        <div class="card memory-card mb-2">
+                            <div class="card-body">
+                                <h6 class="card-title">${result.id}</h6>
+                                <span class="badge bg-success entity-badge">${result.type}</span>
+                                <div class="mt-2">
+                                    <small class="text-muted">${JSON.stringify(result.properties).substring(0, 100)}...</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        async function loadPatientMemory() {
+            const patientId = document.getElementById('patient-selector').value;
+            if (!patientId) {
+                document.getElementById('patient-memory-content').innerHTML = '';
+                document.getElementById('memory-insights').innerHTML = 
+                    '<p class="text-muted">Select a patient to view memory insights...</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/mcp/patient-context/${patientId}`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    displayPatientMemory(data.context);
+                } else {
+                    document.getElementById('patient-memory-content').innerHTML = 
+                        `<div class="alert alert-danger">Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                console.error('Error loading patient memory:', error);
+                document.getElementById('patient-memory-content').innerHTML = 
+                    '<div class="alert alert-danger">Error loading patient memory</div>';
+            }
+        }
+
+        function displayPatientMemory(context) {
+            const contentDiv = document.getElementById('patient-memory-content');
+            const insightsDiv = document.getElementById('memory-insights');
+
+            // Display patient memory content
+            let memoryHtml = '';
+            
+            if (context.mcp_memory && context.mcp_memory.patient_entities) {
+                memoryHtml += '<h6><i class="fas fa-user"></i> Patient Entities:</h6>';
+                context.mcp_memory.patient_entities.forEach(entity => {
+                    memoryHtml += `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6>${entity.name}</h6>
+                                <span class="badge bg-info">${entity.entityType}</span>
+                                <div class="mt-2">
+                                    ${(entity.observations || []).map(obs => 
+                                        `<small class="d-block">• ${obs}</small>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            if (context.mcp_memory && context.mcp_memory.relationships) {
+                memoryHtml += '<h6 class="mt-3"><i class="fas fa-link"></i> Relationships:</h6>';
+                context.mcp_memory.relationships.forEach(rel => {
+                    memoryHtml += `
+                        <div class="relationship-line">
+                            <small><strong>${rel.from}</strong> → <em>${rel.relationType}</em> → <strong>${rel.to}</strong></small>
+                        </div>
+                    `;
+                });
+            }
+
+            contentDiv.innerHTML = memoryHtml || '<p class="text-muted">No memory data available</p>';
+
+            // Display insights
+            let insightsHtml = '';
+            if (context.metadata) {
+                insightsHtml += `
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>${context.metadata.total_sessions || 0}</h5>
+                                    <small>Total Sessions</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>${context.metadata.similar_cases_count || 0}</h5>
+                                    <small>Similar Cases</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                if (context.metadata.progress_trend) {
+                    insightsHtml += `
+                        <div class="mt-3">
+                            <h6>Progress Trend</h6>
+                            <span class="badge ${context.metadata.progress_trend === 'improving' ? 'bg-success' : 'bg-warning'}">
+                                ${context.metadata.progress_trend}
+                            </span>
+                        </div>
+                    `;
+                }
+            }
+
+            insightsDiv.innerHTML = insightsHtml || '<p class="text-muted">No insights available</p>';
+        }
+
+        // Allow search on Enter key
+        document.getElementById('search-query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchMemory();
+            }
+        });
+    </script>
+</body>
+</html> 

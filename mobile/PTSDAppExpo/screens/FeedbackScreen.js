@@ -1,0 +1,715 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ScrollView,
+  SafeAreaView,
+  Modal,
+  FlatList,
+  Animated,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform
+} from 'react-native';
+import { submitSessionFeedback } from '../api';
+import { Picker } from '@react-native-picker/picker';
+import DynamicBackground from '../components/DynamicBackground';
+
+const { width } = Dimensions.get('window');
+
+export default function FeedbackScreen({ route, navigation }) {
+  const { sessionData } = route.params || {};
+  
+  // Animation
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Form state
+  const [finalSUD, setFinalSUD] = useState(50);
+  const [helpfulness, setHelpfulness] = useState(5);
+  const [comfort, setComfort] = useState(5);
+  const [difficulty, setDifficulty] = useState(5);
+  const [improvement, setImprovement] = useState(5);
+  const [wouldRecommend, setWouldRecommend] = useState('yes');
+  const [comments, setComments] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Calculate session duration and format it nicely
+  const getSessionSummary = () => {
+    const startTime = sessionData?.startTime ? new Date(sessionData.startTime) : new Date(Date.now() - 30*60000); // Default 30 min ago
+    const endTime = new Date();
+    const durationMs = endTime.getTime() - startTime.getTime();
+    
+    // Format duration
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+    
+    let durationText = '';
+    if (hours > 0) {
+      durationText = `${hours} שעות ו-${minutes} דקות`;
+    } else if (minutes > 0) {
+      durationText = `${minutes} דקות`;
+      if (seconds > 30) {
+        durationText += ` ו-${seconds} שניות`;
+      }
+    } else {
+      durationText = `${seconds} שניות`;
+    }
+    
+    return {
+      sessionType: sessionData?.sessionType || 'מושלם',
+      chaptersCompleted: sessionData?.chaptersCompleted || 3,
+      totalChapters: 3,
+      duration: durationText,
+      formattedStartTime: startTime.toLocaleTimeString('he-IL', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      formattedEndTime: endTime.toLocaleTimeString('he-IL', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      sessionDate: endTime.toLocaleDateString('he-IL'),
+      durationMinutes: Math.round(durationMs / (1000 * 60))
+    };
+  };
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    
+    try {
+      const summary = getSessionSummary();
+      
+      const feedbackData = {
+        // Session info
+        sessionType: summary.sessionType,
+        chaptersCompleted: summary.chaptersCompleted,
+        sessionDuration: summary.durationMinutes,
+        sessionDate: summary.sessionDate,
+        startTime: summary.formattedStartTime,
+        endTime: summary.formattedEndTime,
+        
+        // Ratings
+        finalSUD,
+        helpfulness,
+        comfort,
+        difficulty,
+        improvement,
+        wouldRecommend,
+        
+        // Comments
+        comments: comments.trim(),
+        
+        // Patient info (if available)
+        patientId: sessionData?.patient?.patient_id || 'unknown',
+        patientName: sessionData?.patient?.name || 'אנונימי',
+        
+        // Timestamp
+        submittedAt: new Date().toISOString()
+      };
+
+      const result = await submitSessionFeedback(feedbackData);
+      
+      if (result.status === 'success') {
+    setSubmitted(true);
+        // Navigate back after 3 seconds
+        setTimeout(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Welcome' }],
+          });
+        }, 3000);
+      } else {
+        Alert.alert('שגיאה', 'שגיאה בשליחת המשוב. אנא נסה שוב.');
+      }
+    } catch (error) {
+      console.log('Feedback submission error:', error);
+      Alert.alert('שגיאה', 'שגיאה בחיבור לשרת. אנא נסה שוב.');
+    }
+    
+    setLoading(false);
+  };
+
+  // Success screen
+  if (submitted) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <DynamicBackground />
+        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+          <View style={styles.successContainer}>
+            <Text style={styles.successIcon}>✅</Text>
+            <Text style={styles.successTitle}>תודה רבה!</Text>
+            <Text style={styles.successMessage}>
+              המשוב שלך נשלח בהצלחה{'\n'}
+              ויעזור לנו לשפר את הטיפול
+            </Text>
+            <Text style={styles.successSubtitle}>
+              חוזרים למסך הבית...
+            </Text>
+      </View>
+        </Animated.View>
+      </SafeAreaView>
+    );
+  }
+
+  const summary = getSessionSummary();
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <DynamicBackground />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardContainer}
+      >
+        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>משוב על המפגש</Text>
+              <Text style={styles.subtitle}>עזור לנו לשפר את החוויה שלך</Text>
+            </View>
+
+            {/* Session Summary */}
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>סיכום המפגש</Text>
+              
+              <View style={styles.summaryGrid}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>סוג מפגש</Text>
+                  <View style={[styles.sessionTypeChip, 
+                    summary.sessionType === 'מושלם' && styles.sessionTypeCompleted,
+                    summary.sessionType === 'יצאת' && styles.sessionTypeExited,
+                    summary.sessionType === 'הופסק' && styles.sessionTypeInterrupted
+                  ]}>
+                    <Text style={styles.sessionTypeText}>{summary.sessionType}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>פרקים</Text>
+                  <Text style={styles.summaryValue}>
+                    {summary.chaptersCompleted}/{summary.totalChapters}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.timingCard}>
+                <Text style={styles.timingTitle}>⏱️ זמן המפגש</Text>
+                <View style={styles.timingRow}>
+                  <Text style={styles.timingLabel}>התחלה:</Text>
+                  <Text style={styles.timingValue}>{summary.formattedStartTime}</Text>
+                </View>
+                <View style={styles.timingRow}>
+                  <Text style={styles.timingLabel}>סיום:</Text>
+                  <Text style={styles.timingValue}>{summary.formattedEndTime}</Text>
+                </View>
+                <View style={styles.timingRow}>
+                  <Text style={styles.timingLabel}>משך זמן:</Text>
+                  <Text style={[styles.timingValue, styles.durationHighlight]}>
+                    {summary.duration}
+                  </Text>
+                </View>
+                <Text style={styles.timingDate}>{summary.sessionDate}</Text>
+              </View>
+            </View>
+
+            {/* SUD Rating */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>רמת החרדה הסופית (SUD)</Text>
+              <Text style={styles.cardSubtitle}>איך אתה מרגיש עכשיו? (10-100)</Text>
+              
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={finalSUD}
+                  onValueChange={setFinalSUD}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  {Array.from({length: 10}, (_, i) => (10 + i * 10)).map(value => (
+                    <Picker.Item 
+                      key={value} 
+                      label={`${value} - ${getSUDDescription(value)}`} 
+                      value={value} 
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* Rating Scales */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>דירוג החוויה</Text>
+              
+              <RatingRow 
+                title="כמה המפגש עזר לך?"
+                value={helpfulness}
+                onChange={setHelpfulness}
+                lowLabel="לא עזר"
+                highLabel="עזר מאוד"
+              />
+              
+              <RatingRow 
+                title="כמה נוח הרגשת?"
+                value={comfort}
+                onChange={setComfort}
+                lowLabel="לא נוח"
+                highLabel="נוח מאוד"
+              />
+              
+              <RatingRow 
+                title="כמה קשה היה המפגש?"
+                value={difficulty}
+                onChange={setDifficulty}
+                lowLabel="קל מאוד"
+                highLabel="קשה מאוד"
+              />
+              
+              <RatingRow 
+                title="האם תרגיש שיפור?"
+                value={improvement}
+                onChange={setImprovement}
+                lowLabel="לא בכלל"
+                highLabel="שיפור גדול"
+              />
+            </View>
+
+            {/* Recommendation */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>המלצה</Text>
+              <Text style={styles.cardSubtitle}>האם תמליץ על המפגש לאחרים?</Text>
+              
+              <View style={styles.recommendationContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.recommendationButton,
+                    wouldRecommend === 'yes' && styles.recommendationButtonActive
+                  ]}
+                  onPress={() => setWouldRecommend('yes')}
+                >
+                  <Text style={[
+                    styles.recommendationText,
+                    wouldRecommend === 'yes' && styles.recommendationTextActive
+                  ]}>
+                    👍 כן, אמליץ
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.recommendationButton,
+                    wouldRecommend === 'no' && styles.recommendationButtonActive
+                  ]}
+                  onPress={() => setWouldRecommend('no')}
+                >
+                  <Text style={[
+                    styles.recommendationText,
+                    wouldRecommend === 'no' && styles.recommendationTextActive
+                  ]}>
+                    👎 לא אמליץ
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Comments */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>הערות נוספות</Text>
+              <Text style={styles.cardSubtitle}>שתף אותנו במחשבות שלך (אופציונלי)</Text>
+              
+      <TextInput
+                style={styles.commentsInput}
+                value={comments}
+                onChangeText={setComments}
+                placeholder="איך היה המפגש בשבילך? מה היה טוב? מה אפשר לשפר?"
+                placeholderTextColor="#94A3B8"
+        multiline
+                numberOfLines={4}
+                textAlign="right"
+                maxLength={500}
+      />
+              <Text style={styles.characterCount}>
+                {comments.length}/500 תווים
+              </Text>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity 
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              <Text style={styles.submitButtonText}>
+                {loading ? 'שולח משוב...' : 'שלח משוב'}
+              </Text>
+            </TouchableOpacity>
+            
+            <View style={styles.bottomSpacer} />
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+// Helper component for rating rows
+function RatingRow({ title, value, onChange, lowLabel, highLabel }) {
+  return (
+    <View style={styles.ratingRow}>
+      <Text style={styles.ratingTitle}>{title}</Text>
+      <View style={styles.ratingScale}>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+          <TouchableOpacity
+            key={num}
+            style={[
+              styles.ratingButton,
+              value === num && styles.ratingButtonActive
+            ]}
+            onPress={() => onChange(num)}
+          >
+            <Text style={[
+              styles.ratingButtonText,
+              value === num && styles.ratingButtonTextActive
+            ]}>
+              {num}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={styles.ratingLabels}>
+        <Text style={styles.ratingLabel}>{lowLabel}</Text>
+        <Text style={styles.ratingLabel}>{highLabel}</Text>
+      </View>
+    </View>
+  );
+}
+
+// Helper function for SUD descriptions
+function getSUDDescription(value) {
+  if (value <= 20) return 'רגוע מאוד';
+  if (value <= 40) return 'רגוע';
+  if (value <= 60) return 'חרדה בינונית';
+  if (value <= 80) return 'חרד';
+  return 'חרדה גבוהה';
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    borderLeftWidth: 6,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1E293B',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  sessionTypeChip: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  sessionTypeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  sessionTypeCompleted: {
+    backgroundColor: '#10B981',
+  },
+  sessionTypeExited: {
+    backgroundColor: '#F59E0B',
+  },
+  sessionTypeInterrupted: {
+    backgroundColor: '#EF4444',
+  },
+  timingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  timingTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+  timingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  timingLabel: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  timingValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  timingDate: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 16,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 16,
+  },
+  picker: {
+    width: '100%',
+    height: 50,
+  },
+  pickerItem: {
+    fontSize: 16,
+    color: '#1E293B',
+  },
+  ratingRow: {
+    marginBottom: 24,
+  },
+  ratingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  ratingScale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  ratingButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  ratingButtonActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  ratingButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  ratingButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  ratingLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  ratingLabel: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  recommendationContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  recommendationButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  recommendationButtonActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  recommendationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  recommendationTextActive: {
+    color: '#FFFFFF',
+  },
+  commentsInput: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minHeight: 100,
+  },
+  characterCount: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'right',
+  },
+  submitButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 40,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#94A3B8',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  submitButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  successIcon: {
+    fontSize: 80,
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#10B981',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  successSubtitle: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  bottomSpacer: {
+    height: 40,
+  },
+}); 

@@ -1,0 +1,860 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}מעקב רווחה - לוח בקרה{% endblock %}
+
+{% block content %}
+<div dir="rtl" class="wellness-tracker-container">
+    <div class="page-header">
+        <div class="flex items-center mb-8">
+            <i class="bi bi-heart-pulse text-primary fs-1 me-3"></i>
+            <h1 class="display-6 fw-bold text-dark mb-0">מעקב רווחה יומי</h1>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="wellness-stat-card mood-card">
+                <div class="stat-icon">
+                    <i class="bi bi-emoji-smile"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="currentMood">7</h3>
+                    <p class="stat-label">מצב רוח נוכחי</p>
+                    <span class="stat-trend positive">
+                        <i class="bi bi-arrow-up"></i> +1.2
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="wellness-stat-card anxiety-card">
+                <div class="stat-icon">
+                    <i class="bi bi-activity"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="currentAnxiety">4</h3>
+                    <p class="stat-label">רמת חרדה</p>
+                    <span class="stat-trend negative">
+                        <i class="bi bi-arrow-down"></i> -0.8
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="wellness-stat-card sleep-card">
+                <div class="stat-icon">
+                    <i class="bi bi-moon"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="sleepHours">6.5</h3>
+                    <p class="stat-label">שעות שינה</p>
+                    <span class="stat-trend neutral">
+                        <i class="bi bi-dash"></i> 0.0
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="wellness-stat-card energy-card">
+                <div class="stat-icon">
+                    <i class="bi bi-lightning"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="energyLevel">6</h3>
+                    <p class="stat-label">רמת אנרגיה</p>
+                    <span class="stat-trend positive">
+                        <i class="bi bi-arrow-up"></i> +0.5
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="modern-tabs-container">
+        <ul class="nav nav-pills nav-fill modern-nav-tabs" id="wellnessTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active modern-tab-link" id="daily-log-tab" data-bs-toggle="tab" data-bs-target="#daily-log" type="button" role="tab">
+                    <i class="bi bi-calendar-day me-2"></i>
+                    רישום יומי
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link modern-tab-link" id="progress-charts-tab" data-bs-toggle="tab" data-bs-target="#progress-charts" type="button" role="tab">
+                    <i class="bi bi-graph-up me-2"></i>
+                    גרפי התקדמות
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link modern-tab-link" id="insights-tab" data-bs-toggle="tab" data-bs-target="#insights" type="button" role="tab">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    תובנות
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link modern-tab-link" id="goals-tab" data-bs-toggle="tab" data-bs-target="#goals" type="button" role="tab">
+                    <i class="bi bi-target me-2"></i>
+                    מטרות
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content modern-tab-content" id="wellnessTabContent">
+            <!-- Daily Log Tab -->
+            <div class="tab-pane fade show active" id="daily-log" role="tabpanel">
+                <div class="modern-card">
+                    <div class="modern-card-header">
+                        <h5 class="card-title mb-0 fw-bold">רישום יומי - ${new Date().toLocaleDateString('he-IL')}</h5>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="row g-4">
+                            <!-- Mood Tracking -->
+                            <div class="col-md-6">
+                                <div class="wellness-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-emoji-smile me-2"></i>
+                                        מצב רוח
+                                    </h6>
+                                    <div class="mood-selector">
+                                        <div class="mood-scale">
+                                            <div class="scale-labels">
+                                                <span>עצוב</span>
+                                                <span>מצוין</span>
+                                            </div>
+                                            <input type="range" class="mood-slider" id="moodSlider" min="1" max="10" value="7">
+                                            <div class="mood-value">
+                                                <span id="moodValue">7</span>/10
+                                            </div>
+                                        </div>
+                                        <div class="mood-emojis">
+                                            <span class="mood-emoji" data-value="1">😢</span>
+                                            <span class="mood-emoji" data-value="3">😕</span>
+                                            <span class="mood-emoji" data-value="5">😐</span>
+                                            <span class="mood-emoji" data-value="7">🙂</span>
+                                            <span class="mood-emoji active" data-value="10">😊</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Anxiety Level -->
+                            <div class="col-md-6">
+                                <div class="wellness-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-activity me-2"></i>
+                                        רמת חרדה
+                                    </h6>
+                                    <div class="anxiety-selector">
+                                        <div class="anxiety-scale">
+                                            <div class="scale-labels">
+                                                <span>רגוע</span>
+                                                <span>חרדה גבוהה</span>
+                                            </div>
+                                            <input type="range" class="anxiety-slider" id="anxietySlider" min="1" max="10" value="4">
+                                            <div class="anxiety-value">
+                                                <span id="anxietyValue">4</span>/10
+                                            </div>
+                                        </div>
+                                        <div class="anxiety-indicators">
+                                            <div class="indicator low active"></div>
+                                            <div class="indicator medium"></div>
+                                            <div class="indicator high"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sleep Quality -->
+                            <div class="col-md-6">
+                                <div class="wellness-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-moon me-2"></i>
+                                        איכות שינה
+                                    </h6>
+                                    <div class="sleep-tracker">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <label class="form-label">שעות שינה</label>
+                                                <input type="number" class="form-control modern-input" id="sleepHours" min="0" max="12" step="0.5" value="6.5">
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label">איכות</label>
+                                                <select class="form-select modern-select" id="sleepQuality">
+                                                    <option value="poor">גרועה</option>
+                                                    <option value="fair">בינונית</option>
+                                                    <option value="good" selected>טובה</option>
+                                                    <option value="excellent">מצוינת</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Energy Level -->
+                            <div class="col-md-6">
+                                <div class="wellness-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-lightning me-2"></i>
+                                        רמת אנרגיה
+                                    </h6>
+                                    <div class="energy-selector">
+                                        <div class="energy-buttons">
+                                            <button class="energy-btn" data-value="1">מותש</button>
+                                            <button class="energy-btn" data-value="3">עייף</button>
+                                            <button class="energy-btn active" data-value="6">בסדר</button>
+                                            <button class="energy-btn" data-value="8">אנרגטי</button>
+                                            <button class="energy-btn" data-value="10">מלא חיים</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Daily Activities -->
+                            <div class="col-12">
+                                <div class="wellness-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-list-check me-2"></i>
+                                        פעילויות יומיות
+                                    </h6>
+                                    <div class="activities-grid">
+                                        <div class="activity-item">
+                                            <input type="checkbox" id="exercise" class="activity-checkbox">
+                                            <label for="exercise" class="activity-label">
+                                                <i class="bi bi-bicycle"></i>
+                                                פעילות גופנית
+                                            </label>
+                                        </div>
+                                        <div class="activity-item">
+                                            <input type="checkbox" id="meditation" class="activity-checkbox">
+                                            <label for="meditation" class="activity-label">
+                                                <i class="bi bi-peace"></i>
+                                                מדיטציה
+                                            </label>
+                                        </div>
+                                        <div class="activity-item">
+                                            <input type="checkbox" id="social" class="activity-checkbox">
+                                            <label for="social" class="activity-label">
+                                                <i class="bi bi-people"></i>
+                                                פעילות חברתית
+                                            </label>
+                                        </div>
+                                        <div class="activity-item">
+                                            <input type="checkbox" id="therapy" class="activity-checkbox">
+                                            <label for="therapy" class="activity-label">
+                                                <i class="bi bi-chat-heart"></i>
+                                                טיפול/יעוץ
+                                            </label>
+                                        </div>
+                                        <div class="activity-item">
+                                            <input type="checkbox" id="creative" class="activity-checkbox">
+                                            <label for="creative" class="activity-label">
+                                                <i class="bi bi-palette"></i>
+                                                יצירה
+                                            </label>
+                                        </div>
+                                        <div class="activity-item">
+                                            <input type="checkbox" id="nature" class="activity-checkbox">
+                                            <label for="nature" class="activity-label">
+                                                <i class="bi bi-tree"></i>
+                                                זמן בטבע
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="col-12">
+                                <div class="wellness-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-journal-text me-2"></i>
+                                        הערות יומיות
+                                    </h6>
+                                    <textarea class="form-control modern-textarea" id="dailyNotes" rows="4" placeholder="איך הרגשת היום? מה עבר עליך? מה למדת על עצמך?"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-3 justify-content-end mt-4">
+                            <button class="btn btn-outline-secondary modern-btn-secondary" id="clearDailyLog">
+                                <i class="bi bi-x-circle me-2"></i>
+                                נקה
+                            </button>
+                            <button class="btn btn-primary modern-btn-primary" id="saveDailyLog">
+                                <i class="bi bi-save me-2"></i>
+                                שמור רישום יומי
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Charts Tab -->
+            <div class="tab-pane fade" id="progress-charts" role="tabpanel">
+                <div class="modern-card">
+                    <div class="modern-card-header">
+                        <h5 class="card-title mb-0 fw-bold">גרפי התקדמות</h5>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <h6 class="chart-title">מצב רוח - 30 יום אחרונים</h6>
+                                    <canvas id="moodChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <h6 class="chart-title">רמת חרדה - 30 יום אחרונים</h6>
+                                    <canvas id="anxietyChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <h6 class="chart-title">איכות שינה</h6>
+                                    <canvas id="sleepChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <h6 class="chart-title">פעילויות שבועיות</h6>
+                                    <canvas id="activitiesChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights Tab -->
+            <div class="tab-pane fade" id="insights" role="tabpanel">
+                <div class="modern-card">
+                    <div class="modern-card-header">
+                        <h5 class="card-title mb-0 fw-bold">תובנות אישיות</h5>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="insights-grid">
+                            <div class="insight-card positive">
+                                <div class="insight-icon">
+                                    <i class="bi bi-arrow-up-circle"></i>
+                                </div>
+                                <div class="insight-content">
+                                    <h6>שיפור במצב הרוח</h6>
+                                    <p>מצב הרוח שלך השתפר ב-15% השבוע. המשך כך!</p>
+                                </div>
+                            </div>
+                            
+                            <div class="insight-card warning">
+                                <div class="insight-icon">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                </div>
+                                <div class="insight-content">
+                                    <h6>דפוס שינה</h6>
+                                    <p>שעות השינה שלך לא קבועות. נסה לשמור על שגרה.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="insight-card info">
+                                <div class="insight-icon">
+                                    <i class="bi bi-lightbulb"></i>
+                                </div>
+                                <div class="insight-content">
+                                    <h6>קשר בין פעילות לרווחה</h6>
+                                    <p>בימים שבהם התעמלת, מצב הרוח שלך היה גבוה יותר ב-20%.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="insight-card success">
+                                <div class="insight-icon">
+                                    <i class="bi bi-check-circle"></i>
+                                </div>
+                                <div class="insight-content">
+                                    <h6>יעד הושג</h6>
+                                    <p>השגת את יעד המדיטציה השבועי! 5 מתוך 7 ימים.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goals Tab -->
+            <div class="tab-pane fade" id="goals" role="tabpanel">
+                <div class="modern-card">
+                    <div class="modern-card-header">
+                        <h5 class="card-title mb-0 fw-bold">מטרות אישיות</h5>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="goals-container">
+                            <div class="goal-item">
+                                <div class="goal-header">
+                                    <h6>שיפור איכות השינה</h6>
+                                    <span class="goal-progress">75%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 75%"></div>
+                                </div>
+                                <p class="goal-description">לישון 7-8 שעות בלילה, 5 ימים בשבוע</p>
+                            </div>
+                            
+                            <div class="goal-item">
+                                <div class="goal-header">
+                                    <h6>הפחתת רמת החרדה</h6>
+                                    <span class="goal-progress">60%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 60%"></div>
+                                </div>
+                                <p class="goal-description">להגיע לרמת חרדה מתחת ל-5 ברוב הימים</p>
+                            </div>
+                            
+                            <div class="goal-item">
+                                <div class="goal-header">
+                                    <h6>פעילות גופנית קבועה</h6>
+                                    <span class="goal-progress">40%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 40%"></div>
+                                </div>
+                                <p class="goal-description">להתעמל 3 פעמים בשבוע, לפחות 30 דקות</p>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-outline-primary modern-btn-primary mt-4">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            הוסף מטרה חדשה
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/dashboard/js/wellness_tracker.js"></script>
+<style>
+/* Wellness Tracker Styles */
+.wellness-tracker-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: var(--background-color);
+    min-height: 100vh;
+}
+
+/* Stat Cards */
+.wellness-stat-card {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.wellness-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.wellness-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), #3b82f6);
+}
+
+.mood-card::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.anxiety-card::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.sleep-card::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.energy-card::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+.stat-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin: 0.5rem 0;
+}
+
+.stat-trend {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.stat-trend.positive {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
+.stat-trend.negative {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+.stat-trend.neutral {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+}
+
+/* Wellness Sections */
+.wellness-section {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.section-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Mood Selector */
+.mood-scale {
+    margin-bottom: 1rem;
+}
+
+.scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.mood-slider, .anxiety-slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.mood-slider::-webkit-slider-thumb, .anxiety-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid var(--primary-color);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.mood-value, .anxiety-value {
+    text-align: center;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-top: 0.5rem;
+}
+
+.mood-emojis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+}
+
+.mood-emoji {
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.mood-emoji:hover, .mood-emoji.active {
+    background: var(--primary-color);
+    transform: scale(1.2);
+}
+
+/* Anxiety Indicators */
+.anxiety-indicators {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.indicator {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+}
+
+.indicator.low { background: #10b981; }
+.indicator.medium { background: #f59e0b; }
+.indicator.high { background: #ef4444; }
+
+.indicator.active {
+    opacity: 1;
+}
+
+/* Energy Buttons */
+.energy-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.energy-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border-color);
+    background: white;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.energy-btn:hover, .energy-btn.active {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Activities Grid */
+.activities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.activity-item {
+    position: relative;
+}
+
+.activity-checkbox {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.activity-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.activity-label i {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+}
+
+.activity-checkbox:checked + .activity-label {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.activity-checkbox:checked + .activity-label i {
+    color: var(--primary-color);
+}
+
+/* Modern Textarea */
+.modern-textarea {
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+}
+
+.modern-textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+}
+
+/* Chart Containers */
+.chart-container {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.chart-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+/* Insights Grid */
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.insight-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: white;
+    box-shadow: var(--shadow-sm);
+}
+
+.insight-card.positive {
+    border-left: 4px solid #10b981;
+    background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+}
+
+.insight-card.warning {
+    border-left: 4px solid #f59e0b;
+    background: linear-gradient(135deg, #fffbeb, #fefce8);
+}
+
+.insight-card.info {
+    border-left: 4px solid #3b82f6;
+    background: linear-gradient(135deg, #eff6ff, #f0f9ff);
+}
+
+.insight-card.success {
+    border-left: 4px solid #8b5cf6;
+    background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+}
+
+.insight-icon {
+    font-size: 1.5rem;
+    margin-top: 0.25rem;
+}
+
+.insight-card.positive .insight-icon { color: #059669; }
+.insight-card.warning .insight-icon { color: #d97706; }
+.insight-card.info .insight-icon { color: #2563eb; }
+.insight-card.success .insight-icon { color: #7c3aed; }
+
+.insight-content h6 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.insight-content p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Goals Container */
+.goals-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.goal-item {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+}
+
+.goal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.goal-header h6 {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.goal-progress {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 1.125rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), #3b82f6);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.goal-description {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .wellness-tracker-container {
+        padding: 1rem;
+    }
+    
+    .activities-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .energy-buttons {
+        flex-direction: column;
+    }
+    
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %} 

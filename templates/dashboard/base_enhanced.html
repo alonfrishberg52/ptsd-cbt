@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NarraTIVE Dashboard{% endblock %}</title>
+    
+    <!-- Preload Critical Assets -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" as="style">
+    <link rel="preload" href="/static/dashboard/css/dashboard_enhanced.css" as="style">
+    
+    <!-- External CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/dashboard/css/dashboard_enhanced.css">
+    <link rel="stylesheet" href="/static/dashboard/css/dashboard.css">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="NarraTIVE">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="NarraTIVE - PTSD Therapy Dashboard">
+    <meta property="og:description" content="Advanced therapy management platform for PTSD treatment">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/img/favicon-16x16.png">
+    
+    {% block extra_head %}{% endblock %}
+    
+    <style>
+        /* Critical CSS for immediate loading */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2563eb 0%, #10b981 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .loading-text {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-logo">
+            <i class="bi bi-heart-pulse" style="font-size: 2rem; color: white;"></i>
+        </div>
+        <div class="loading-text">NarraTIVE</div>
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Dashboard Container -->
+    <div class="dashboard-container">
+        <!-- Enhanced Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="/static/img/logo.png" alt="NarraTIVE Logo" onerror="this.style.display='none'">
+                    <div class="sidebar-title">NarraTIVE</div>
+                </div>
+                <div class="sidebar-subtitle" style="font-size: 0.875rem; color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;">
+                    מערכת ניהול טיפול PTSD
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul>
+                    <li>
+                        <a href="/dashboard" data-tooltip="דף הבית של הדשבורד">
+                            <i class="bi bi-house"></i>
+                            <span>דשבורד</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/patients" data-tooltip="ניהול מטופלים">
+                            <i class="bi bi-people"></i>
+                            <span>מטופלים</span>
+                            <span class="badge badge-primary" id="patientsCount">0</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/patients_overview" data-tooltip="סקירה מפורטת של מטופלים">
+                            <i class="bi bi-graph-up-arrow"></i>
+                            <span>סקירת התקדמות</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/stories" data-tooltip="ניהול סיפורי חשיפה">
+                            <i class="bi bi-journal-text"></i>
+                            <span>סיפורי חשיפה</span>
+                            <span class="badge badge-secondary" id="storiesCount">0</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/session-notes" data-tooltip="הערות מפגש">
+                            <i class="bi bi-clipboard2-pulse"></i>
+                            <span>הערות מפגש</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/wellness-tracker" data-tooltip="מעקב רווחה יומי">
+                            <i class="bi bi-heart-pulse"></i>
+                            <span>מעקב רווחה</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/mindfulness" data-tooltip="תרגילי מיינדפולנס">
+                            <i class="bi bi-peace"></i>
+                            <span>מיינדפולנס</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/research" data-tooltip="מחקר ומשאבים">
+                            <i class="bi bi-search"></i>
+                            <span>מחקר</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/audit" data-tooltip="יומן פעילות">
+                            <i class="bi bi-clock-history"></i>
+                            <span>יומן פעילות</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/compliance" data-tooltip="בקרת איכות">
+                            <i class="bi bi-shield-check"></i>
+                            <span>בקרת איכות</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dev/mcp-memory?dev_key=mindshift_dev_2024" data-tooltip="זיכרון MCP למפתחים">
+                            <i class="bi bi-cpu"></i>
+                            <span>MCP Memory</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer" style="padding: var(--space-md); border-top: 1px solid rgba(255, 255, 255, 0.1); margin-top: auto;">
+                <div class="user-info" style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md);">
+                    <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-person" style="color: white; font-size: 1.2rem;"></i>
+                    </div>
+                    <div class="user-details">
+                        <div style="font-weight: 600; font-size: 0.9rem;">מטפל ראשי</div>
+                        <div style="font-size: 0.8rem; color: rgba(255, 255, 255, 0.7);">מחובר</div>
+                    </div>
+                </div>
+                
+                <div class="quick-actions" style="display: flex; gap: var(--space-sm);">
+                    <button class="btn btn-ghost btn-sm" data-modal="settings" data-tooltip="הגדרות">
+                        <i class="bi bi-gear"></i>
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="dashboard.exportData('json')" data-tooltip="ייצא נתונים">
+                        <i class="bi bi-download"></i>
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="window.location.href='/welcome'" data-tooltip="התנתק">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="mainContent">
+            <!-- Top Bar -->
+            <header class="top-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl); padding: var(--space-lg); background: var(--bg-glass); backdrop-filter: blur(20px); border-radius: var(--radius-2xl); box-shadow: var(--shadow-lg);">
+                <div class="page-info">
+                    <h1 class="page-title" style="font-size: 2rem; font-weight: 800; margin: 0; background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        {% block page_title %}דשבורד{% endblock %}
+                    </h1>
+                    <p class="page-description" style="margin: 0; color: var(--text-secondary); font-size: 1rem;">
+                        {% block page_description %}ברוכים הבאים למערכת ניהול הטיפול{% endblock %}
+                    </p>
+                </div>
+                
+                <div class="top-bar-actions" style="display: flex; align-items: center; gap: var(--space-md);">
+                    <!-- Search -->
+                    <div class="search-container" style="position: relative;">
+                        <input type="search" placeholder="חיפוש מטופלים..." style="padding: var(--space-sm) var(--space-lg); border: 2px solid rgba(0, 0, 0, 0.1); border-radius: var(--radius-lg); background: var(--bg-primary); width: 300px;">
+                        <i class="bi bi-search" style="position: absolute; left: var(--space-md); top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    </div>
+                    
+                    <!-- Notifications -->
+                    <button class="btn btn-ghost" data-tooltip="התראות" onclick="dashboard.checkNotifications()">
+                        <i class="bi bi-bell"></i>
+                        <span class="badge badge-warning" id="notificationBadge" style="position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; font-size: 0.7rem; display: none;">0</span>
+                    </button>
+                    
+                    <!-- User Menu -->
+                    <div class="user-menu" style="display: flex; align-items: center; gap: var(--space-sm);">
+                        <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-person" style="color: white; font-size: 1.2rem;"></i>
+                        </div>
+                        <div class="user-details">
+                            <div style="font-weight: 600; font-size: 0.9rem;">מטפל ראשי</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">מחובר</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Breadcrumb Navigation -->
+            <nav class="breadcrumb" style="margin-bottom: var(--space-lg);">
+                <ol style="display: flex; align-items: center; gap: var(--space-sm); list-style: none; margin: 0; padding: 0; font-size: 0.9rem; color: var(--text-secondary);">
+                    <li><a href="/dashboard" style="color: var(--primary-color); text-decoration: none;">דשבורד</a></li>
+                    {% block breadcrumb %}{% endblock %}
+                </ol>
+            </nav>
+
+            <!-- Page Content -->
+            <div class="page-content">
+                {% block content %}
+                <div class="welcome-message" style="text-align: center; padding: var(--space-2xl); background: var(--bg-glass); border-radius: var(--radius-2xl); box-shadow: var(--shadow-lg);">
+                    <i class="bi bi-heart-pulse" style="font-size: 4rem; color: var(--primary-color); margin-bottom: var(--space-lg);"></i>
+                    <h2 style="margin-bottom: var(--space-md);">ברוכים הבאים ל-NarraTIVE</h2>
+                    <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto;">
+                        מערכת מתקדמת לניהול טיפול PTSD עם כלים חכמים לחשיפה הדרגתית, מעקב התקדמות ושיפור איכות הטיפול.
+                    </p>
+                </div>
+                {% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Action Button -->
+    <button class="fab" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" data-tooltip="חזור למעלה" id="scrollToTop" style="display: none;">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <script src="/static/dashboard/js/dashboard_enhanced.js"></script>
+    
+    {% block scripts %}{% endblock %}
+
+    <script>
+        // Initialize page-specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hide loading screen
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.classList.add('hidden');
+                    setTimeout(() => loadingScreen.remove(), 500);
+                }
+            }, 1000);
+
+            // Update sidebar badges with real counts
+            updateSidebarCounts();
+
+            // Show/hide scroll to top button
+            window.addEventListener('scroll', () => {
+                const scrollToTop = document.getElementById('scrollToTop');
+                if (window.scrollY > 300) {
+                    scrollToTop.style.display = 'flex';
+                } else {
+                    scrollToTop.style.display = 'none';
+                }
+            });
+
+            // Add keyboard shortcuts info
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key === '?') {
+                    showKeyboardShortcuts();
+                }
+            });
+        });
+
+        async function updateSidebarCounts() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const patientsCount = document.getElementById('patientsCount');
+                    const storiesCount = document.getElementById('storiesCount');
+                    
+                    if (patientsCount) patientsCount.textContent = data.summary.total_patients || 0;
+                    if (storiesCount) storiesCount.textContent = data.summary.pending_stories || 0;
+                }
+            } catch (error) {
+                console.error('Error updating sidebar counts:', error);
+            }
+        }
+
+        function showKeyboardShortcuts() {
+            if (window.dashboard) {
+                const shortcuts = `
+                    <div style="max-width: 500px;">
+                        <h3>קיצורי מקלדת</h3>
+                        <div style="margin-top: 1rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>Ctrl + K</span>
+                                <span>חיפוש</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>Ctrl + D</span>
+                                <span>החלפת מצב (כהה/בהיר)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>Escape</span>
+                                <span>סגירת מודל</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>Ctrl + Shift + ?</span>
+                                <span>הצגת קיצורי מקלדת</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                window.dashboard.modalContainer.innerHTML = `
+                    <div style="background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--radius-2xl); padding: var(--space-2xl); max-width: 600px; width: 90%; box-shadow: var(--shadow-xl);">
+                        ${shortcuts}
+                        <button class="btn btn-primary" onclick="dashboard.closeModal()" style="margin-top: 1rem;">סגור</button>
+                    </div>
+                `;
+                window.dashboard.modalContainer.style.display = 'flex';
+            }
+        }
+
+        // Add error handling for missing images
+        document.addEventListener('error', function(e) {
+            if (e.target.tagName === 'IMG') {
+                e.target.style.display = 'none';
+                console.warn('Image failed to load:', e.target.src);
+            }
+        }, true);
+
+        // Performance monitoring
+        window.addEventListener('load', function() {
+            if ('performance' in window) {
+                const timing = performance.timing;
+                const loadTime = timing.loadEventEnd - timing.navigationStart;
+                console.log(`Page load time: ${loadTime}ms`);
+                
+                if (loadTime > 3000) {
+                    console.warn('Page load time is high. Consider optimizing resources.');
+                }
+            }
+        });
+    </script>
+
+    <!-- Service Worker for PWA capabilities -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(function(registration) {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(function(registrationError) {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html> 

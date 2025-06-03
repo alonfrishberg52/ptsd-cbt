@@ -1,64 +1,409 @@
-{% extends 'dashboard/base.html' %}
-{% block title %}מטופלים{% endblock %}
+{% extends 'dashboard/base_enhanced.html' %}
+
+{% block title %}מטופלים - NarraTIVE{% endblock %}
+{% block page_title %}מטופלים{% endblock %}
+{% block page_description %}ניהול ומעקב מטופלים במערכת{% endblock %}
+
+{% block breadcrumb %}
+<li><i class="bi bi-chevron-left" style="font-size: 0.8rem; margin: 0 var(--space-xs);"></i></li>
+<li>מטופלים</li>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">רשימת מטופלים</h2>
+<!-- Header with Actions -->
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl); padding: var(--space-lg); background: var(--bg-glass); backdrop-filter: blur(20px); border-radius: var(--radius-2xl); box-shadow: var(--shadow-lg);">
+    <div class="header-info">
+        <h2 style="margin: 0; font-size: 1.75rem; font-weight: 700;">רשימת מטופלים</h2>
+        <p style="margin: 0; color: var(--text-secondary); margin-top: var(--space-xs);">
+            {{ patients|length }} מטופלים רשומים במערכת
+        </p>
+    </div>
+    
+    <div class="header-actions" style="display: flex; gap: var(--space-md); align-items: center;">
+        <!-- Search Box -->
+        <div class="search-container" style="position: relative;">
+            <input type="search" id="patientSearch" placeholder="חיפוש מטופלים..." 
+                   style="padding: var(--space-sm) var(--space-lg); border: 2px solid rgba(0, 0, 0, 0.1); border-radius: var(--radius-lg); background: var(--bg-primary); width: 300px;">
+            <i class="bi bi-search" style="position: absolute; left: var(--space-md); top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+        </div>
+        
+        <!-- Filter Dropdown -->
+        <div class="filter-container">
+            <select id="filterSelect" class="form-control" style="min-width: 150px;">
+                <option value="">כל המטופלים</option>
+                <option value="active">פעילים</option>
+                <option value="recent">אחרונים</option>
+                <option value="flagged">מסומנים</option>
+            </select>
+        </div>
+        
+        <!-- Add Patient Button -->
+        <button class="btn btn-primary" data-modal="add-patient" data-tooltip="הוסף מטופל חדש">
+            <i class="bi bi-person-plus"></i>
+            <span>הוסף מטופל</span>
+        </button>
+    </div>
 </div>
-<div class="card mt-4 shadow-sm">
-    <div class="card-header">רשימת מטופלים</div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-        <table class="table table-striped table-hover table-bordered mb-0 align-middle" style="min-width:900px;">
-            <thead class="table-light" style="position:sticky;top:0;z-index:1;">
+
+<!-- Enhanced Patient Table -->
+<div class="card table-container" style="background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--radius-2xl); overflow: hidden; box-shadow: var(--shadow-xl);">
+    <div class="card-header" style="padding: var(--space-lg); border-bottom: 1px solid rgba(0, 0, 0, 0.05); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">מטופלים פעילים</h3>
+        
+        <div class="table-controls" style="display: flex; gap: var(--space-sm); align-items: center;">
+            <span class="badge badge-primary" id="resultsCount">{{ patients|length }}</span>
+            <button class="btn btn-ghost btn-sm" onclick="exportPatients()" data-tooltip="ייצא לExcel">
+                <i class="bi bi-download"></i>
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="refreshPatients()" data-tooltip="רענן">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+        <table class="table" id="patientsTable" style="margin: 0;">
+            <thead style="position: sticky; top: 0; background: var(--bg-primary); z-index: 10;">
                 <tr>
-                    <th>שם</th>
-                    <th>גיל</th>
-                    <th>תסמיני PTSD</th>
-                    <th>תסמינים כלליים</th>
-                    <th>הימנעויות עיקריות</th>
-                    <th>פעולות</th>
+                    <th data-sort="name" style="cursor: pointer; padding: var(--space-md) var(--space-lg); font-weight: 600; border-bottom: 2px solid rgba(0, 0, 0, 0.1);">
+                        שם <i class="bi bi-arrow-down-up" style="font-size: 0.8rem; margin-right: var(--space-xs);"></i>
+                    </th>
+                    <th data-sort="age" style="cursor: pointer; padding: var(--space-md) var(--space-lg); font-weight: 600; border-bottom: 2px solid rgba(0, 0, 0, 0.1);">
+                        גיל <i class="bi bi-arrow-down-up" style="font-size: 0.8rem; margin-right: var(--space-xs);"></i>
+                    </th>
+                    <th style="padding: var(--space-md) var(--space-lg); font-weight: 600; border-bottom: 2px solid rgba(0, 0, 0, 0.1);">
+                        תסמיני PTSD
+                    </th>
+                    <th style="padding: var(--space-md) var(--space-lg); font-weight: 600; border-bottom: 2px solid rgba(0, 0, 0, 0.1);">
+                        סטטוס
+                    </th>
+                    <th style="padding: var(--space-md) var(--space-lg); font-weight: 600; border-bottom: 2px solid rgba(0, 0, 0, 0.1);">
+                        פעולות
+                    </th>
                 </tr>
             </thead>
             <tbody>
                 {% for patient in patients %}
-                <tr class="patient-row" style="cursor:pointer;" data-href="{{ url_for('patient_profile', patient_id=patient.patient_id) }}">
-                    <td>{{ patient.name }}</td>
-                    <td>{{ patient.age }}</td>
-                    <td>{{ patient.ptsd_symptoms|join(', ') }}</td>
-                    <td>
-                        {% if patient.general_symptoms %}
-                            {% for key, val in patient.general_symptoms.items() %}
-                                {{ {'intrusion':'דחיקות','arousal':'ערנות','thoughts':'מחשבות טורדניות','avoidance':'הימנעויות','mood':'שינוי מצב רוח'}[key] }}: {{ val }}{% if not loop.last %}, {% endif %}
-                            {% endfor %}
-                        {% endif %}
+                <tr class="patient-row" data-patient-id="{{ patient.patient_id }}" data-name="{{ patient.name|lower }}" 
+                    style="cursor: pointer; transition: all var(--transition-fast); border-bottom: 1px solid rgba(0, 0, 0, 0.05);">
+                    <td style="padding: var(--space-md) var(--space-lg);">
+                        <div class="patient-info" style="display: flex; align-items: center; gap: var(--space-md);">
+                            <div class="patient-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                                {{ patient.name[0] if patient.name else 'M' }}
+                            </div>
+                            <div class="patient-details">
+                                <div style="font-weight: 600; font-size: 1rem;">{{ patient.name or 'ללא שם' }}</div>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                    ID: {{ patient.patient_id[-8:] }}
+                                </div>
+                            </div>
+                        </div>
                     </td>
-                    <td>{{ patient.main_avoidances|join(', ') }}</td>
-                    <td>
-                        <a href="{{ url_for('patient_profile', patient_id=patient.patient_id) }}" class="btn btn-sm btn-info" title="צפה בפרופיל" data-bs-toggle="tooltip"><i class="bi bi-person-lines-fill"></i></a>
-                        <a href="/dashboard/patients/{{ patient.patient_id }}/edit" class="btn btn-sm btn-primary" title="ערוך" data-bs-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
+                    <td style="padding: var(--space-md) var(--space-lg);">
+                        <span class="age-badge" style="background: rgba(37, 99, 235, 0.1); color: var(--primary-color); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-md); font-weight: 600;">
+                            {{ patient.age or 'N/A' }}
+                        </span>
+                    </td>
+                    <td style="padding: var(--space-md) var(--space-lg);">
+                        <div class="symptoms-container" style="display: flex; flex-wrap: wrap; gap: var(--space-xs);">
+                            {% for symptom in patient.ptsd_symptoms[:3] %}
+                            <span class="symptom-tag" style="background: rgba(220, 38, 38, 0.1); color: var(--warning-color); padding: var(--space-xs); border-radius: var(--radius-sm); font-size: 0.8rem;">
+                                {{ symptom }}
+                            </span>
+                            {% endfor %}
+                            {% if patient.ptsd_symptoms|length > 3 %}
+                            <span class="more-symptoms" style="color: var(--text-muted); font-size: 0.8rem;">
+                                +{{ patient.ptsd_symptoms|length - 3 }} נוספים
+                            </span>
+                        {% endif %}
+                        </div>
+                    </td>
+                    <td style="padding: var(--space-md) var(--space-lg);">
+                        <span class="status-badge badge-success" style="background: var(--success-color); color: white; padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-md); font-size: 0.8rem; font-weight: 600;">
+                            פעיל
+                        </span>
+                    </td>
+                    <td style="padding: var(--space-md) var(--space-lg);">
+                        <div class="action-buttons" style="display: flex; gap: var(--space-xs);">
+                            <button class="btn btn-ghost btn-sm" onclick="viewPatient('{{ patient.patient_id }}')" data-tooltip="צפה בפרופיל">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-ghost btn-sm" onclick="editPatient('{{ patient.patient_id }}')" data-tooltip="ערוך">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-ghost btn-sm" onclick="createStory('{{ patient.patient_id }}')" data-tooltip="צור סיפור">
+                                <i class="bi bi-journal-plus"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: var(--space-2xl); color: var(--text-muted);">
+                        <i class="bi bi-people" style="font-size: 3rem; margin-bottom: var(--space-md);"></i>
+                        <p>אין מטופלים רשומים במערכת</p>
+                        <button class="btn btn-primary" data-modal="add-patient">הוסף מטופל ראשון</button>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         </div>
+</div>
+
+<!-- Floating Stats -->
+<div class="floating-stats" style="position: fixed; bottom: 20px; right: 20px; background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--radius-xl); padding: var(--space-md); box-shadow: var(--shadow-lg); z-index: 1000; min-width: 200px;">
+    <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: var(--space-xs);">סיכום מהיר</div>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: 600;">סה"כ מטופלים:</span>
+        <span class="badge badge-primary">{{ patients|length }}</span>
     </div>
 </div>
+{% endblock %}
+
 {% block scripts %}
 <script>
-    // Make rows clickable
-    document.querySelectorAll('.patient-row').forEach(function(row) {
+document.addEventListener('DOMContentLoaded', function() {
+    initializePatientList();
+});
+
+function initializePatientList() {
+    // Enhanced search functionality
+    const searchInput = document.getElementById('patientSearch');
+    searchInput.addEventListener('input', debounce(performSearch, 300));
+    
+    // Filter functionality
+    const filterSelect = document.getElementById('filterSelect');
+    filterSelect.addEventListener('change', applyFilter);
+    
+    // Row click handling
+    const rows = document.querySelectorAll('.patient-row');
+    rows.forEach(row => {
         row.addEventListener('click', function(e) {
-            // Prevent click if clicking on a button
-            if(e.target.closest('a,button')) return;
-            window.location = row.getAttribute('data-href');
+            // Don't trigger row click if clicking on buttons
+            if (e.target.closest('button, a')) return;
+            
+            const patientId = this.dataset.patientId;
+            if (patientId) {
+                window.location.href = `/dashboard/patients/${patientId}`;
+            }
+        });
+        
+        // Hover effects
+        row.addEventListener('mouseenter', function() {
+            this.style.background = 'rgba(37, 99, 235, 0.05)';
+            this.style.transform = 'translateX(4px)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.background = '';
+            this.style.transform = '';
         });
     });
-    // Enable Bootstrap tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-        new bootstrap.Tooltip(tooltipTriggerEl);
+    
+    // Sort functionality
+    const sortHeaders = document.querySelectorAll('th[data-sort]');
+    sortHeaders.forEach(header => {
+        header.addEventListener('click', () => sortTable(header.dataset.sort));
     });
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function performSearch() {
+    const searchTerm = document.getElementById('patientSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('.patient-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const patientName = row.dataset.name || '';
+        const isVisible = patientName.includes(searchTerm);
+        
+        row.style.display = isVisible ? '' : 'none';
+        if (isVisible) visibleCount++;
+    });
+    
+    updateResultsCount(visibleCount);
+    
+    // Show no results message if needed
+    toggleNoResultsMessage(visibleCount === 0);
+}
+
+function applyFilter() {
+    const filterValue = document.getElementById('filterSelect').value;
+    const rows = document.querySelectorAll('.patient-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        let isVisible = true;
+        
+        switch(filterValue) {
+            case 'active':
+                // Show all for now (can be enhanced based on actual activity data)
+                isVisible = true;
+                break;
+            case 'recent':
+                // Could filter by creation date if available
+                isVisible = true;
+                break;
+            case 'flagged':
+                // Could filter by flagged status if available
+                isVisible = false; // For demo, show none
+                break;
+            default:
+                isVisible = true;
+        }
+        
+        row.style.display = isVisible ? '' : 'none';
+        if (isVisible) visibleCount++;
+    });
+    
+    updateResultsCount(visibleCount);
+}
+
+function sortTable(column) {
+    const table = document.getElementById('patientsTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('.patient-row'));
+    
+    const sortedRows = rows.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch(column) {
+            case 'name':
+                aValue = a.dataset.name || '';
+                bValue = b.dataset.name || '';
+                break;
+            case 'age':
+                aValue = parseInt(a.querySelector('.age-badge').textContent) || 0;
+                bValue = parseInt(b.querySelector('.age-badge').textContent) || 0;
+                break;
+            default:
+                return 0;
+        }
+        
+        if (typeof aValue === 'string') {
+            return aValue.localeCompare(bValue, 'he');
+        } else {
+            return aValue - bValue;
+        }
+    });
+    
+    // Clear and re-append sorted rows
+    tbody.innerHTML = '';
+    sortedRows.forEach(row => tbody.appendChild(row));
+    
+    // Show notification
+    if (window.dashboard) {
+        window.dashboard.showNotification(`טבלה מוינה לפי ${column}`, 'info');
+    }
+}
+
+function updateResultsCount(count) {
+    const counter = document.getElementById('resultsCount');
+    if (counter) {
+        counter.textContent = count;
+    }
+}
+
+function toggleNoResultsMessage(show) {
+    // Implementation for showing/hiding no results message
+    console.log('No results:', show);
+}
+
+// Action functions
+function viewPatient(patientId) {
+    window.location.href = `/dashboard/patients/${patientId}`;
+}
+
+function editPatient(patientId) {
+    window.location.href = `/dashboard/patients/${patientId}/edit`;
+}
+
+function createStory(patientId) {
+    // Could open modal or navigate to story creation
+    if (window.dashboard) {
+        window.dashboard.showModal('add-story');
+        // Pre-select the patient when modal opens
+        setTimeout(() => {
+            const patientSelect = document.getElementById('patientSelect');
+            if (patientSelect) {
+                patientSelect.value = patientId;
+            }
+        }, 100);
+    }
+}
+
+function exportPatients() {
+    // Export functionality
+    if (window.dashboard) {
+        window.dashboard.exportData('csv');
+        window.dashboard.showNotification('יצוא רשימת מטופלים...', 'info');
+    }
+}
+
+function refreshPatients() {
+    // Refresh page
+    window.location.reload();
+}
+
+// Enhanced styling
+const enhancedStyles = `
+    .patient-row:hover .action-buttons {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    
+    .action-buttons {
+        opacity: 0.7;
+        transform: translateX(10px);
+        transition: all var(--transition-normal);
+    }
+    
+    .symptom-tag:hover {
+        transform: scale(1.05);
+    }
+    
+    .table th:hover {
+        background: rgba(37, 99, 235, 0.05);
+    }
+    
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column !important;
+            gap: var(--space-md) !important;
+        }
+        
+        .header-actions {
+            width: 100% !important;
+            flex-direction: column !important;
+        }
+        
+        .search-container input {
+            width: 100% !important;
+        }
+        
+        .floating-stats {
+            position: relative !important;
+            bottom: auto !important;
+            right: auto !important;
+            margin-top: var(--space-lg) !important;
+        }
+    }
+`;
+
+const styleSheet = document.createElement('style');
+styleSheet.textContent = enhancedStyles;
+document.head.appendChild(styleSheet);
 </script>
-{% endblock %}
 {% endblock %} 

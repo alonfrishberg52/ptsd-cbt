@@ -1,0 +1,295 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}חקר ומשאבים טיפוליים{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">חקר ומשאבים טיפוליים</h1>
+            
+            <!-- Search Type Selection -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">בחר סוג חיפוש</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100 search-type-btn" data-type="ptsd" data-needs-query="true">
+                                חקר PTSD
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100 search-type-btn" data-type="cbt" data-needs-query="true">
+                                טכניקות CBT
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100 search-type-btn" data-type="exposure" data-needs-query="false">
+                                טיפול חשיפה
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100 search-type-btn" data-type="sud" data-needs-query="false">
+                                סולם SUD
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100 search-type-btn" data-type="narrative" data-needs-query="false">
+                                טיפול נרטיבי
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100 search-type-btn" data-type="therapist" data-needs-query="true">
+                                משאבי מטפל
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100 search-type-btn" data-type="coping" data-needs-query="false">
+                                אסטרטגיות התמודדות
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100 search-type-btn" data-type="triggers" data-needs-query="false">
+                                ניהול טריגרים
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Form -->
+            <div class="card mb-4" id="search-form-card" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0" id="search-title">חיפוש</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input type="text" class="form-control" id="search-query" placeholder="הזן מונח חיפוש..." style="display: none;">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary w-100" id="search-btn" onclick="performSearch()">
+                                <span id="search-btn-text">חפש</span>
+                                <span id="search-spinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div id="results-container" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">תוצאות חיפוש</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="results-content"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Results -->
+            <div id="no-results" class="alert alert-info" style="display: none;">
+                <i class="bi bi-info-circle me-2"></i>
+                אין תוצאות להצגה
+            </div>
+
+            <!-- Error Message -->
+            <div id="error-message" class="alert alert-danger" style="display: none;">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <span id="error-text"></span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSearchType = null;
+
+// Search type selection
+document.querySelectorAll('.search-type-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Remove active class from all buttons
+        document.querySelectorAll('.search-type-btn').forEach(b => {
+            b.classList.remove('btn-primary');
+            b.classList.add('btn-outline-primary');
+        });
+        
+        // Add active class to clicked button
+        this.classList.remove('btn-outline-primary');
+        this.classList.add('btn-primary');
+        
+        currentSearchType = this.dataset.type;
+        const needsQuery = this.dataset.needsQuery === 'true';
+        
+        // Show search form
+        document.getElementById('search-form-card').style.display = 'block';
+        document.getElementById('search-title').textContent = `חיפוש: ${this.textContent}`;
+        
+        // Show/hide query input based on search type
+        const queryInput = document.getElementById('search-query');
+        if (needsQuery) {
+            queryInput.style.display = 'block';
+            queryInput.required = true;
+        } else {
+            queryInput.style.display = 'none';
+            queryInput.required = false;
+            queryInput.value = '';
+        }
+        
+        // Hide previous results
+        hideResults();
+    });
+});
+
+async function performSearch() {
+    if (!currentSearchType) return;
+    
+    const queryInput = document.getElementById('search-query');
+    const query = queryInput.value.trim();
+    const needsQuery = queryInput.style.display !== 'none';
+    
+    if (needsQuery && !query) {
+        showError('יש להזין מונח חיפוש');
+        return;
+    }
+    
+    // Show loading state
+    setLoading(true);
+    hideResults();
+    
+    try {
+        let url, method, body;
+        
+        switch (currentSearchType) {
+            case 'ptsd':
+                url = '/api/research/ptsd';
+                method = 'POST';
+                body = JSON.stringify({ query });
+                break;
+            case 'cbt':
+                url = '/api/research/cbt-techniques';
+                method = 'POST';
+                body = JSON.stringify({ technique: query });
+                break;
+            case 'exposure':
+                url = '/api/research/exposure-therapy';
+                method = 'GET';
+                break;
+            case 'sud':
+                url = '/api/research/sud-scale';
+                method = 'GET';
+                break;
+            case 'narrative':
+                url = '/api/research/narrative-therapy';
+                method = 'GET';
+                break;
+            case 'therapist':
+                url = '/api/resources/therapist';
+                method = 'POST';
+                body = JSON.stringify({ topic: query });
+                break;
+            case 'coping':
+                url = '/api/resources/coping-strategies';
+                method = 'GET';
+                break;
+            case 'triggers':
+                url = '/api/resources/trigger-management';
+                method = 'GET';
+                break;
+        }
+        
+        const options = {
+            method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+        
+        if (body) {
+            options.body = body;
+        }
+        
+        const response = await fetch(url, options);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            displayResults(data.results);
+        } else {
+            showError(data.message || 'שגיאה בחיפוש');
+        }
+    } catch (error) {
+        showError('שגיאה בחיפוש: ' + error.message);
+    } finally {
+        setLoading(false);
+    }
+}
+
+function displayResults(results) {
+    const container = document.getElementById('results-content');
+    
+    if (!results || results.length === 0) {
+        document.getElementById('no-results').style.display = 'block';
+        return;
+    }
+    
+    let html = '';
+    results.forEach((result, index) => {
+        html += `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">${result.title || 'ללא כותרת'}</h6>
+                    <p class="card-text small text-muted mb-2">
+                        <i class="bi bi-link me-1"></i>
+                        <a href="${result.url}" target="_blank" class="text-decoration-none">${result.url}</a>
+                    </p>
+                    <p class="card-text">${result.text || 'אין תוכן זמין'}</p>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    document.getElementById('results-container').style.display = 'block';
+}
+
+function setLoading(loading) {
+    const btn = document.getElementById('search-btn');
+    const btnText = document.getElementById('search-btn-text');
+    const spinner = document.getElementById('search-spinner');
+    
+    if (loading) {
+        btn.disabled = true;
+        btnText.textContent = 'מחפש...';
+        spinner.style.display = 'inline-block';
+    } else {
+        btn.disabled = false;
+        btnText.textContent = 'חפש';
+        spinner.style.display = 'none';
+    }
+}
+
+function hideResults() {
+    document.getElementById('results-container').style.display = 'none';
+    document.getElementById('no-results').style.display = 'none';
+    document.getElementById('error-message').style.display = 'none';
+}
+
+function showError(message) {
+    document.getElementById('error-text').textContent = message;
+    document.getElementById('error-message').style.display = 'block';
+}
+
+// Allow Enter key to trigger search
+document.getElementById('search-query').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        performSearch();
+    }
+});
+</script>
+{% endblock %} 

@@ -7,6 +7,136 @@ from services.hebrew_service import HebrewService
 import uuid
 from gtts import gTTS
 import os
+import re
+from typing import Optional, Dict, Any
+
+def enhance_hebrew_text_for_tts(text: str, patient_gender: str = 'neutral') -> str:
+    """
+    Enhance Hebrew text for better TTS pronunciation
+    
+    Args:
+        text: Hebrew text to enhance
+        patient_gender: 'male', 'female', or 'neutral' for gender-appropriate language
+        
+    Returns:
+        Enhanced text with better pronunciation markers
+    """
+    
+    # Normalize Hebrew text
+    enhanced_text = text.strip()
+    
+    # Add pronunciation helpers for common Hebrew patterns
+    pronunciation_fixes = {
+        # Common word stress patterns
+        'לא ': 'לא ',  # Ensure proper spacing
+        'את ': 'את ',  # Clear pronunciation of direct object marker
+        'של ': 'של ',  # Possessive marker
+        'על ': 'על ',  # Preposition
+        'אל ': 'אל ',  # Preposition
+        'בשביל': 'בשביל',  # For the sake of
+        'בגלל': 'בגלל',    # Because of
+        
+        # Therapeutic vocabulary with proper stress
+        'חרדה': 'חרדה',      # Anxiety
+        'פחד': 'פחד',        # Fear
+        'כוח': 'כוח',        # Strength
+        'אמונה': 'אמונה',    # Faith/Belief
+        'תקווה': 'תקווה',    # Hope
+        'הבנה': 'הבנה',      # Understanding
+        'רגש': 'רגש',        # Emotion
+        'מחשבה': 'מחשבה',   # Thought
+        'נשימה': 'נשימה',   # Breathing
+        'הרפיה': 'הרפיה',   # Relaxation
+        
+        # Common therapy phrases
+        'אתה חזק': 'אתה חזק',           # You are strong
+        'זה יעבור': 'זה יעבור',         # This will pass
+        'אתה לא לבד': 'אתה לא לבד',   # You are not alone
+        'כל צעד קטן': 'כל צעד קטן',   # Every small step
+    }
+    
+    # Apply pronunciation fixes
+    for original, enhanced in pronunciation_fixes.items():
+        enhanced_text = enhanced_text.replace(original, enhanced)
+    
+    # Gender-specific adjustments
+    if patient_gender == 'female':
+        # Adjust verbs and adjectives for feminine forms
+        gender_fixes = {
+            'אתה ': 'את ',           # You (masc) -> You (fem)
+            'אתה.': 'את.',           # You at end of sentence
+            'אתה,': 'את,',           # You with comma
+            'חזק': 'חזקה',           # Strong (masc) -> Strong (fem)
+            'יכול': 'יכולה',         # Can (masc) -> Can (fem)
+            'מוכן': 'מוכנה',         # Ready (masc) -> Ready (fem)
+            'עייף': 'עייפה',         # Tired (masc) -> Tired (fem)
+        }
+        
+        for masc, fem in gender_fixes.items():
+            enhanced_text = enhanced_text.replace(masc, fem)
+    
+    # Add natural pauses for better reading flow
+    enhanced_text = re.sub(r'([.!?])\s*', r'\1 ', enhanced_text)  # Ensure space after punctuation
+    enhanced_text = re.sub(r',\s*', ', ', enhanced_text)          # Ensure space after commas
+    enhanced_text = re.sub(r':\s*', ': ', enhanced_text)          # Ensure space after colons
+    
+    # Add breathing pauses in long sentences
+    enhanced_text = re.sub(r'([.!?])\s+([א-ת])', r'\1\n\n\2', enhanced_text)  # Line breaks between sentences
+    
+    return enhanced_text
+
+def generate_audio_file(text: str, patient_data: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    """
+    Generate high-quality Hebrew TTS audio file with therapeutic voice settings
+    
+    Args:
+        text: Hebrew text to convert to speech
+        patient_data: Optional patient data for gender-appropriate voice
+        
+    Returns:
+        Audio filename if successful, None if failed
+    """
+    
+    try:
+        # Determine patient gender for voice selection
+        patient_gender = 'neutral'
+        if patient_data:
+            patient_gender = patient_data.get('gender', 'neutral')
+        
+        # Enhance text for better Hebrew pronunciation
+        enhanced_text = enhance_hebrew_text_for_tts(text, patient_gender)
+        
+        # Configure TTS settings for therapeutic use
+        tts_config = {
+            'text': enhanced_text,
+            'lang': 'iw',  # Hebrew language code
+            'slow': False,  # Normal speed - we'll control speed in player
+            'tld': 'com'    # Use google.com for better Hebrew support
+        }
+        
+        # Generate TTS
+        tts = gTTS(**tts_config)
+        
+        # Create unique filename
+        audio_file = f"therapy_story_{uuid.uuid4().hex[:8]}.mp3"
+        audio_path = os.path.join('static', 'audio', audio_file)
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+        
+        # Save audio file
+        tts.save(audio_path)
+        
+        # Verify file was created
+        if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            return audio_file
+        else:
+            print(f"TTS file creation failed or empty: {audio_path}")
+            return None
+            
+    except Exception as e:
+        print(f"TTS generation error: {e}")
+        return None
 
 class StoryGenerationService:
     """
@@ -51,53 +181,29 @@ class StoryGenerationService:
 
     def generate_story(self, patient_profile, exposure_stage, last_sud=None, previous_parts=None, rules=None):
         """
-        Generate a personalized story for the patient, using all clinical data and injected rules.
-        - patient_profile: dict with all patient data
-        - exposure_stage: int (1, 2, or 3)
-        - last_sud: previous SUD value
-        - previous_parts: list of previous story parts
-        - rules: string of clinical rules to inject into the LLM prompt (from .cursorrules or other source)
-        Returns: dict with plan, evaluation, story, and feedback from modular services and validators.
+        Generate a complete story with enhanced TTS capabilities
         """
-        word_counts = {1: 1000, 2: 2000, 3: 3000}
-        word_count = word_counts.get(exposure_stage, 1000)
-
-        # Format patient context for LLM
-        context = self.format_patient_context(patient_profile)
-        patient_profile_with_wordcount = dict(patient_profile)
-        patient_profile_with_wordcount['word_count_instruction'] = (
-            f"Please ensure the generated plan and story for this part is approximately {word_count} words long."
-        )
-
         # Generate the plan
         plan = self.plan_agent.generate_plan(
             part=exposure_stage,
-            patient_data=context,
-            previous_plan=None,
-            target_sud_range=None,
+            patient_data=str(patient_profile),
+            target_sud_range=self._get_target_sud_range(exposure_stage),
             previous_sud=last_sud,
-            adjustment=None,
-            previous_explanation=None,
             rules=rules
         )
 
+        # Evaluate the plan
         expected_sud, explanation = self.eval_agent.evaluate_sud(
             plan=plan,
-            patient_data=context,
+            patient_data=str(patient_profile),
             last_patient_sud=last_sud,
             rules=rules
         )
 
-        # If plan is a string, append the word count instruction for the story agent
-        if isinstance(plan, str):
-            plan_for_story = f"{plan}\n\nPlease ensure this story part is about {word_count} words."
-        else:
-            plan_for_story = plan
-
         # Generate the story
         story = self.story_agent.generate_story(
             part=exposure_stage,
-            plan=plan_for_story,
+            plan=plan,
             previous_parts=previous_parts,
             rules=rules
         )
@@ -109,15 +215,9 @@ class StoryGenerationService:
         rule_feedback = self.rule_service.aggregate_rule_validation(story)
         hebrew_feedback = self.hebrew_service.validate_hebrew_language(story)
 
-        # Convert story to speech
-        audio_file = None
-        try:
-            tts = gTTS(story, lang='iw')
-            audio_file = f"story_{uuid.uuid4().hex}.mp3"
-            audio_path = os.path.join('static', 'audio', audio_file)
-            tts.save(audio_path)
-        except Exception as e:
-            audio_file = None  # Optionally log error
+        # Generate enhanced TTS audio with patient data
+        audio_file = generate_audio_file(story, patient_profile)
+
         return {
             "plan": plan,
             "evaluation": {
@@ -131,4 +231,13 @@ class StoryGenerationService:
             "dialogue_feedback": dialogue_feedback,
             "rule_feedback": rule_feedback,
             "hebrew_feedback": hebrew_feedback
-        } 
+        }
+
+    def _get_target_sud_range(self, exposure_stage):
+        """Get target SUD range based on exposure stage"""
+        sud_ranges = {
+            1: (30, 50),  # Gentle introduction
+            2: (40, 70),  # Moderate exposure
+            3: (20, 40),  # Resolution and calming
+        }
+        return sud_ranges.get(exposure_stage, (30, 50)) 

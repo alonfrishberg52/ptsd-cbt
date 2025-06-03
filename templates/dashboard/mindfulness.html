@@ -1,0 +1,266 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}מיינדפולנס ומדיטציה - לוח בקרה{% endblock %}
+
+{% block content %}
+<div dir="rtl" class="mindfulness-container">
+    <div class="page-header">
+        <div class="flex items-center mb-8">
+            <i class="bi bi-peace text-primary fs-1 me-3"></i>
+            <h1 class="display-6 fw-bold text-dark mb-0">מיינדפולנס ומדיטציה</h1>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="modern-tabs-container">
+        <ul class="nav nav-pills nav-fill modern-nav-tabs" id="mindfulnessTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active modern-tab-link" id="breathing-tab" data-bs-toggle="tab" data-bs-target="#breathing" type="button" role="tab">
+                    <i class="bi bi-wind me-2"></i>
+                    תרגילי נשימה
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link modern-tab-link" id="meditation-tab" data-bs-toggle="tab" data-bs-target="#meditation" type="button" role="tab">
+                    <i class="bi bi-clock me-2"></i>
+                    מדיטציה מודרכת
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link modern-tab-link" id="relaxation-tab" data-bs-toggle="tab" data-bs-target="#relaxation" type="button" role="tab">
+                    <i class="bi bi-moon me-2"></i>
+                    טכניקות הרפיה
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link modern-tab-link" id="progress-tab" data-bs-toggle="tab" data-bs-target="#progress" type="button" role="tab">
+                    <i class="bi bi-graph-up me-2"></i>
+                    מעקב התקדמות
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content modern-tab-content" id="mindfulnessTabContent">
+            <!-- Breathing Exercises Tab -->
+            <div class="tab-pane fade show active" id="breathing" role="tabpanel">
+                <div class="modern-card">
+                    <div class="modern-card-header">
+                        <h5 class="card-title mb-0 fw-bold">תרגיל נשימה 4-7-8</h5>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="breathing-exercise">
+                            <div class="breathing-circle" id="breathingCircle">
+                                <div class="breathing-text">
+                                    <span id="breathingPhase">התכונן</span>
+                                    <span id="breathingCount">4</span>
+                                </div>
+                            </div>
+                            
+                            <div class="breathing-controls">
+                                <div class="breathing-info">
+                                    <p class="text-center mb-3">שאף 4 שניות • החזק 7 שניות • נשוף 8 שניות</p>
+                                    <div class="cycle-counter">
+                                        <span>מחזור: <span id="currentCycle">1</span> / <span id="totalCycles">3</span></span>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex gap-3 justify-content-center mt-4">
+                                    <button class="btn btn-outline-secondary modern-btn-secondary" id="resetBreathing">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>
+                                        איפוס
+                                    </button>
+                                    <button class="btn btn-primary modern-btn-primary" id="startBreathing">
+                                        <i class="bi bi-play me-2"></i>
+                                        התחל
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meditation Tab -->
+            <div class="tab-pane fade" id="meditation" role="tabpanel">
+                <div class="modern-card">
+                    <div class="modern-card-header">
+                        <h5 class="card-title mb-0 fw-bold">מדיטציה מודרכת</h5>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="meditation-timer">
+                            <div class="timer-settings" id="timerSettings">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">משך המדיטציה (דקות)</label>
+                                        <select class="form-select modern-select" id="meditationDuration">
+                                            <option value="5">5 דקות</option>
+                                            <option value="10" selected>10 דקות</option>
+                                            <option value="15">15 דקות</option>
+                                            <option value="20">20 דקות</option>
+                                            <option value="30">30 דקות</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">סוג מדיטציה</label>
+                                        <select class="form-select modern-select" id="meditationType">
+                                            <option value="mindfulness">מיינדפולנס</option>
+                                            <option value="body-scan">סריקת גוף</option>
+                                            <option value="loving-kindness">חמלה עצמית</option>
+                                            <option value="visualization">הדמיה</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="timer-display" id="timerDisplay" style="display: none;">
+                                <div class="timer-circle">
+                                    <div class="timer-text">
+                                        <span id="timerMinutes">10</span>:<span id="timerSeconds">00</span>
+                                    </div>
+                                    <div class="timer-progress" id="timerProgress"></div>
+                                </div>
+                                
+                                <div class="meditation-guidance">
+                                    <p id="meditationGuidance" class="text-center">התמקד בנשימה שלך...</p>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-3 justify-content-center mt-4">
+                                <button class="btn btn-outline-secondary modern-btn-secondary" id="resetMeditation">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>
+                                    איפוס
+                                </button>
+                                <button class="btn btn-primary modern-btn-primary" id="startMeditation">
+                                    <i class="bi bi-play me-2"></i>
+                                    התחל מדיטציה
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Relaxation Techniques Tab -->
+            <div class="tab-pane fade" id="relaxation" role="tabpanel">
+                <div class="modern-card">
+                    <div class="modern-card-header">
+                        <h5 class="card-title mb-0 fw-bold">טכניקות הרפיה</h5>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="relaxation-techniques">
+                            <div class="technique-selector">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="technique-card" data-technique="body-scan">
+                                            <i class="bi bi-person-arms-up"></i>
+                                            <h6>סריקת גוף</h6>
+                                            <p>הרפיה מתקדמת של כל חלקי הגוף</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="technique-card" data-technique="grounding">
+                                            <i class="bi bi-geo-alt"></i>
+                                            <h6>עיגון 5-4-3-2-1</h6>
+                                            <p>טכניקה להרגעה מהירה</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="technique-card" data-technique="safe-place">
+                                            <i class="bi bi-house-heart"></i>
+                                            <h6>מקום בטוח</h6>
+                                            <p>הדמיה של מקום רגוע ובטוח</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="technique-guide" id="techniqueGuide" style="display: none;">
+                                <div class="technique-content">
+                                    <h6 id="techniqueTitle"></h6>
+                                    <p id="techniqueDescription"></p>
+                                    
+                                    <div class="technique-steps">
+                                        <div id="techniqueSteps"></div>
+                                    </div>
+                                    
+                                    <div class="technique-navigation">
+                                        <button class="btn btn-outline-secondary" id="prevStep">
+                                            <i class="bi bi-chevron-right me-2"></i>
+                                            הקודם
+                                        </button>
+                                        <span id="stepCounter">שלב 1 מתוך 5</span>
+                                        <button class="btn btn-primary" id="nextStep">
+                                            הבא
+                                            <i class="bi bi-chevron-left ms-2"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Tracking Tab -->
+            <div class="tab-pane fade" id="progress" role="tabpanel">
+                <div class="modern-card">
+                    <div class="modern-card-header">
+                        <h5 class="card-title mb-0 fw-bold">מעקב התקדמות</h5>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="progress-stats">
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <i class="bi bi-clock-history"></i>
+                                        <h3 id="totalMinutes">45</h3>
+                                        <p>דקות השבוע</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <i class="bi bi-calendar-check"></i>
+                                        <h3 id="sessionsThisWeek">3</h3>
+                                        <p>מפגשים השבוע</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <i class="bi bi-trophy"></i>
+                                        <h3 id="longestSession">20</h3>
+                                        <p>מפגש הארוך ביותר</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <i class="bi bi-graph-up"></i>
+                                        <h3 id="weeklyGoal">70%</h3>
+                                        <p>יעד שבועי</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="progress-chart">
+                                <h6>פעילות שבועית</h6>
+                                <canvas id="progressChart" width="400" height="200"></canvas>
+                            </div>
+                            
+                            <div class="recent-sessions">
+                                <h6>מפגשים אחרונים</h6>
+                                <div class="sessions-list" id="sessionsList">
+                                    <!-- Sessions will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/dashboard/js/mindfulness.js"></script>
+{% endblock %} 

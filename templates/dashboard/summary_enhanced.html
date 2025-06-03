@@ -1,0 +1,379 @@
+{% extends 'dashboard/base_enhanced.html' %}
+
+{% block title %}דשבורד ראשי - NarraTIVE{% endblock %}
+{% block page_title %}דשבורד ראשי{% endblock %}
+{% block page_description %}סקירה כללית של המערכת והטיפולים הפעילים{% endblock %}
+
+{% block content %}
+<!-- Main Dashboard Content -->
+
+<!-- Key Metrics Row -->
+<div class="metrics-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-xl); margin-bottom: var(--space-2xl);">
+    <!-- Today's Sessions -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">מפגשים היום</h3>
+            <i class="bi bi-calendar-check" style="color: var(--primary-color); font-size: 1.5rem;"></i>
+        </div>
+        <div class="card-body">
+            <div id="todaysSessions" style="min-height: 200px;">
+                <div class="empty-state" style="text-align: center; padding: var(--space-xl); color: var(--text-muted);">
+                    <i class="bi bi-calendar-x" style="font-size: 3rem; margin-bottom: var(--space-md);"></i>
+                    <p>אין מפגשים מתוכננים היום</p>
+                    <button class="btn btn-outline btn-sm" data-modal="add-patient">
+                        <i class="bi bi-plus"></i>
+                        הוסף מטופל
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Urgent Cases -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">מקרים דחופים</h3>
+            <i class="bi bi-exclamation-triangle" style="color: var(--warning-color); font-size: 1.5rem;"></i>
+        </div>
+        <div class="card-body">
+            <div id="urgentCases" style="min-height: 200px;">
+                <div class="urgent-case" style="padding: var(--space-md); margin-bottom: var(--space-sm); background: rgba(220, 38, 38, 0.05); border-radius: var(--radius-md); border-left: 4px solid var(--warning-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
+                        <span style="font-weight: 600;">מטופלים עם SUD גבוה</span>
+                        <span class="badge badge-warning">0</span>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0;">אין מטופלים עם רמת SUD מעל 8</p>
+                </div>
+                
+                <div class="urgent-case" style="padding: var(--space-md); margin-bottom: var(--space-sm); background: rgba(37, 99, 235, 0.05); border-radius: var(--radius-md); border-left: 4px solid var(--primary-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
+                        <span style="font-weight: 600;">מטופלים לא פעילים</span>
+                        <span class="badge badge-info">0</span>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0;">מטופלים ללא פעילות השבוע</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Patients & Quick Actions -->
+<div class="content-row" style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-xl); margin-bottom: var(--space-2xl);">
+    <!-- Recent Patients -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">מטופלים אחרונים</h3>
+            <a href="/dashboard/patients" class="btn btn-ghost btn-sm">
+                <i class="bi bi-arrow-left"></i>
+                צפה בכל המטופלים
+            </a>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="patients-list" style="max-height: 400px; overflow-y: auto;">
+                <div id="recentPatients">
+                    <div class="empty-state" style="text-align: center; padding: var(--space-2xl); color: var(--text-muted);">
+                        <i class="bi bi-people" style="font-size: 3rem; margin-bottom: var(--space-md);"></i>
+                        <p>טוען רשימת מטופלים...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions & System Info -->
+    <div style="display: flex; flex-direction: column; gap: var(--space-lg);">
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">פעולות מהירות</h3>
+            </div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: var(--space-md);">
+                <button class="btn btn-primary" data-modal="add-patient" style="width: 100%; justify-content: flex-start;">
+                    <i class="bi bi-person-plus"></i>
+                    הוסף מטופל חדש
+                </button>
+                
+                <a href="/dashboard/patients" class="btn btn-outline" style="width: 100%; justify-content: flex-start; text-decoration: none;">
+                    <i class="bi bi-list-ul"></i>
+                    ניהול מטופלים
+                </a>
+                
+                <a href="/dashboard/stories" class="btn btn-outline" style="width: 100%; justify-content: flex-start; text-decoration: none;">
+                    <i class="bi bi-journal-text"></i>
+                    סיפורי חשיפה
+                </a>
+                
+                <a href="/dashboard/session-notes" class="btn btn-outline" style="width: 100%; justify-content: flex-start; text-decoration: none;">
+                    <i class="bi bi-journal-medical"></i>
+                    הערות מפגש
+                </a>
+            </div>
+        </div>
+
+        <!-- System Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">סטטיסטיקות מערכת</h3>
+            </div>
+            <div class="card-body">
+                <div class="stat-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+                    <span style="color: var(--text-secondary);">סה״כ מטופלים:</span>
+                    <span style="font-weight: 700; color: var(--primary-color);">{{ total_patients }}</span>
+                </div>
+                
+                <div class="stat-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+                    <span style="color: var(--text-secondary);">סיפורי חשיפה:</span>
+                    <span style="font-weight: 700; color: var(--success-color);">{{ total_stories }}</span>
+                </div>
+                
+                <div class="stat-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+                    <span style="color: var(--text-secondary);">משוב אחרון:</span>
+                    <span style="font-weight: 700; color: var(--accent-color);">{{ session_feedback|length }} ביקורות</span>
+                </div>
+                
+                <hr style="margin: var(--space-md) 0; border: none; border-top: 1px solid rgba(0, 0, 0, 0.1);">
+                
+                <div class="stat-item" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary);">סטטוס מערכת:</span>
+                    <span style="color: var(--success-color); font-weight: 600;">
+                        <i class="bi bi-circle-fill" style="font-size: 0.6rem; margin-left: 5px;"></i>
+                        פעילה
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="activity-section" style="margin-bottom: var(--space-2xl);">
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">פעילות אחרונה</h3>
+            <button class="btn btn-ghost btn-sm" onclick="refreshActivity()">
+                <i class="bi bi-arrow-clockwise"></i>
+                רענן
+            </button>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="activity-list" style="max-height: 300px; overflow-y: auto;">
+                {% for entry in recent_activity %}
+                <div class="activity-item" style="padding: var(--space-md) var(--space-lg); border-bottom: 1px solid rgba(0, 0, 0, 0.05); display: flex; align-items: center; gap: var(--space-md); transition: background var(--transition-fast); cursor: pointer;" onclick="handleActivityClick('{{ entry.type }}', '{{ entry.patient_name }}')">
+                    <div class="activity-icon" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+                        {% if entry.type == 'add_patient' %}background: var(--success-color);{% elif entry.type == 'update_story' %}background: var(--primary-color);{% elif entry.type == 'feedback' %}background: var(--accent-color);{% else %}background: var(--text-muted);{% endif %}">
+                        {% if entry.type == 'add_patient' %}
+                        <i class="bi bi-person-plus" style="color: white;"></i>
+                        {% elif entry.type == 'update_story' %}
+                        <i class="bi bi-journal-text" style="color: white;"></i>
+                        {% elif entry.type == 'feedback' %}
+                        <i class="bi bi-emoji-smile" style="color: white;"></i>
+                        {% else %}
+                        <i class="bi bi-info-circle" style="color: white;"></i>
+                        {% endif %}
+                    </div>
+                    <div class="activity-content" style="flex: 1;">
+                        <div class="activity-text" style="font-weight: 500; margin-bottom: var(--space-xs);">
+                            {% if entry.type == 'add_patient' %}
+                            נוסף מטופל חדש: <strong>{{ entry.patient_name }}</strong>
+                            {% elif entry.type == 'update_story' %}
+                            עודכן סיפור עבור <strong>{{ entry.patient_name }}</strong>
+                            {% elif entry.type == 'feedback' %}
+                            התקבל משוב חדש ממטופל <strong>{{ entry.patient_name }}</strong>
+                            {% else %}
+                            פעולה: {{ entry.type }} עבור <strong>{{ entry.patient_name }}</strong>
+                            {% endif %}
+                        </div>
+                        <div class="activity-time" style="font-size: 0.875rem; color: var(--text-muted);">
+                            {{ entry.timestamp }}
+                        </div>
+                    </div>
+                    <div class="activity-action">
+                        <i class="bi bi-chevron-left" style="color: var(--text-muted);"></i>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state" style="text-align: center; padding: var(--space-2xl); color: var(--text-muted);">
+                    <i class="bi bi-clock-history" style="font-size: 3rem; margin-bottom: var(--space-md);"></i>
+                    <p>אין פעילות אחרונה</p>
+                    <p style="font-size: 0.9rem;">הפעילות תופיע כאן לאחר ביצוע פעולות במערכת</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dashboard
+    loadRecentPatients();
+    loadUrgentCases();
+    startRealTimeUpdates();
+    
+    // Add hover effects to activity items
+    const activityItems = document.querySelectorAll('.activity-item');
+    activityItems.forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            this.style.background = 'rgba(37, 99, 235, 0.05)';
+        });
+        item.addEventListener('mouseleave', function() {
+            this.style.background = 'transparent';
+        });
+    });
+});
+
+async function loadRecentPatients() {
+    try {
+        const response = await fetch('/api/patients');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const container = document.getElementById('recentPatients');
+            const patients = data.patients.slice(0, 5); // Show last 5 patients
+            
+            if (patients.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="text-align: center; padding: var(--space-2xl); color: var(--text-muted);">
+                        <i class="bi bi-people" style="font-size: 3rem; margin-bottom: var(--space-md);"></i>
+                        <p>אין מטופלים במערכת</p>
+                        <button class="btn btn-primary btn-sm" data-modal="add-patient">
+                            <i class="bi bi-plus"></i>
+                            הוסף מטופל ראשון
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = patients.map(patient => `
+                <div class="patient-item" style="padding: var(--space-md) var(--space-lg); border-bottom: 1px solid rgba(0, 0, 0, 0.05); display: flex; align-items: center; gap: var(--space-md); transition: background var(--transition-fast); cursor: pointer;" onclick="window.location.href='/dashboard/patients/${patient.patient_id}'">
+                    <div class="patient-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                        ${(patient.first_name || patient.name || 'מ').charAt(0).toUpperCase()}
+                    </div>
+                    <div class="patient-info" style="flex: 1;">
+                        <div class="patient-name" style="font-weight: 600; margin-bottom: var(--space-xs);">
+                            ${patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim()}
+                        </div>
+                        <div class="patient-details" style="font-size: 0.85rem; color: var(--text-secondary);">
+                            גיל ${patient.age || 'לא צוין'} • ${patient.gender || 'לא צוין'}
+                        </div>
+                    </div>
+                    <div class="patient-status">
+                        <span class="badge badge-success">פעיל</span>
+                    </div>
+                    <div class="patient-action">
+                        <i class="bi bi-chevron-left" style="color: var(--text-muted);"></i>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading patients:', error);
+        document.getElementById('recentPatients').innerHTML = `
+            <div class="empty-state" style="text-align: center; padding: var(--space-2xl); color: var(--text-muted);">
+                <i class="bi bi-exclamation-triangle" style="font-size: 3rem; margin-bottom: var(--space-md);"></i>
+                <p>שגיאה בטעינת המטופלים</p>
+            </div>
+        `;
+    }
+}
+
+async function loadUrgentCases() {
+    try {
+        // This would be expanded to check for real urgent cases
+        // For now, keeping it simple
+        const response = await fetch('/api/patients');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const highSudCount = 0; // Would calculate from actual SUD data
+            const inactiveCount = 0; // Would calculate from session dates
+            
+            document.querySelector('.urgent-case:first-child .badge').textContent = highSudCount;
+            document.querySelector('.urgent-case:last-child .badge').textContent = inactiveCount;
+        }
+    } catch (error) {
+        console.error('Error loading urgent cases:', error);
+    }
+}
+
+function handleActivityClick(type, patientName) {
+    // Handle activity item clicks
+    if (type === 'add_patient') {
+        // Navigate to patient list to find the patient
+        window.location.href = '/dashboard/patients';
+    } else if (type === 'update_story') {
+        // Navigate to stories
+        window.location.href = '/dashboard/stories';
+    } else if (type === 'feedback') {
+        // Show feedback details
+        if (window.dashboard) {
+            window.dashboard.showNotification(`משוב מ${patientName}`, 'info');
+        }
+    }
+}
+
+function refreshActivity() {
+    // Refresh activity feed
+    const button = event.target.closest('button');
+    const icon = button.querySelector('i');
+    
+    icon.style.animation = 'spin 1s linear infinite';
+    
+    // Reload the page to refresh data
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
+}
+
+function startRealTimeUpdates() {
+    // Update dashboard every 30 seconds
+    setInterval(async () => {
+        await loadRecentPatients();
+        await loadUrgentCases();
+    }, 30000);
+}
+
+// Add CSS for enhanced interactions
+const enhancedStyles = `
+    .patient-item:hover, .activity-item:hover {
+        background: rgba(37, 99, 235, 0.05) !important;
+        transform: translateX(-2px);
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card:hover {
+        box-shadow: var(--shadow-xl);
+        transform: translateY(-2px);
+    }
+    
+    .stat-item:hover {
+        background: rgba(37, 99, 235, 0.02);
+        border-radius: var(--radius-md);
+        padding: var(--space-xs);
+        margin: var(--space-xs) calc(-1 * var(--space-xs));
+    }
+    
+    @media (max-width: 768px) {
+        .content-row {
+            grid-template-columns: 1fr !important;
+        }
+        
+        .metrics-row {
+            grid-template-columns: 1fr !important;
+        }
+    }
+`;
+
+const styleSheet = document.createElement('style');
+styleSheet.textContent = enhancedStyles;
+document.head.appendChild(styleSheet);
+</script>
+{% endblock %} 

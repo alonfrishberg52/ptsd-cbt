@@ -18,6 +18,7 @@ mindshift-tts-*.json
 
 # VSCode/Cursor
 .vscode/
+.cursor/
 .cursorrules/
 
 # Node/npm (if any)

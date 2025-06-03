@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Functions Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .test-button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .test-button:hover {
+            background: #1d4ed8;
+        }
+        
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            border-left: 4px solid #22c55e;
+        }
+        
+        .error {
+            border-left: 4px solid #ef4444;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .form-row > * {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Dashboard Functions Test</h1>
+    <p>בדיקת תפקוד דשבורד NarraTIVE</p>
+
+    <!-- Test Patient Creation -->
+    <div class="test-section">
+        <h2>📝 בדיקת יצירת מטופל</h2>
+        <div class="form-row">
+            <input type="text" id="firstName" placeholder="שם פרטי" value="אליס">
+            <input type="text" id="lastName" placeholder="שם משפחה" value="כהן">
+        </div>
+        <div class="form-row">
+            <input type="number" id="age" placeholder="גיל" value="35">
+            <select id="gender">
+                <option value="">בחר מגדר</option>
+                <option value="נקבה" selected>נקבה</option>
+                <option value="זכר">זכר</option>
+                <option value="אחר">אחר</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <input type="text" id="city" placeholder="עיר" value="תל אביב">
+            <input type="text" id="occupation" placeholder="מקצוע" value="מהנדסת">
+        </div>
+        <button class="test-button" onclick="testAddPatient()">יצירת מטופל</button>
+        <div id="patientResult" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- Test Story Creation -->
+    <div class="test-section">
+        <h2>📚 בדיקת יצירת סיפור</h2>
+        <select id="patientSelect">
+            <option value="">טוען מטופלים...</option>
+        </select>
+        <div class="form-row">
+            <select id="storyType">
+                <option value="exposure">חשיפה</option>
+                <option value="narrative">נרטיבי</option>
+                <option value="coping">התמודדות</option>
+            </select>
+            <select id="exposureLevel">
+                <option value="1">רמה 1 - קלה</option>
+                <option value="2" selected>רמה 2 - בינונית</option>
+                <option value="3">רמה 3 - חזקה</option>
+            </select>
+        </div>
+        <textarea id="storyContent" placeholder="תוכן ראשוני (אופציונלי)" rows="3">סיפור חשיפה ראשוני לבדיקה</textarea>
+        <button class="test-button" onclick="loadPatients()">טען מטופלים</button>
+        <button class="test-button" onclick="testAddStory()">יצירת סיפור</button>
+        <div id="storyResult" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- Test Search -->
+    <div class="test-section">
+        <h2>🔍 בדיקת חיפוש</h2>
+        <input type="text" id="searchQuery" placeholder="חפש מטופלים..." value="אליס">
+        <button class="test-button" onclick="testSearch()">חיפוש</button>
+        <div id="searchResult" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- Test API Endpoints -->
+    <div class="test-section">
+        <h2>🔗 בדיקת API</h2>
+        <button class="test-button" onclick="testGetPatients()">קבלת רשימת מטופלים</button>
+        <button class="test-button" onclick="testGetStories()">קבלת רשימת סיפורים</button>
+        <button class="test-button" onclick="testDashboardData()">נתוני דשבורד</button>
+        <button class="test-button" onclick="testNotifications()">התראות</button>
+        <div id="apiResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Helper function to display results
+        function showResult(elementId, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            element.innerHTML = JSON.stringify(data, null, 2);
+        }
+
+        // Test patient creation
+        async function testAddPatient() {
+            const patientData = {
+                first_name: document.getElementById('firstName').value,
+                last_name: document.getElementById('lastName').value,
+                age: parseInt(document.getElementById('age').value),
+                gender: document.getElementById('gender').value,
+                city: document.getElementById('city').value,
+                occupation: document.getElementById('occupation').value
+            };
+
+            try {
+                const response = await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(patientData)
+                });
+
+                const result = await response.json();
+                showResult('patientResult', result, response.ok);
+                
+                if (response.ok) {
+                    // Reload patients list
+                    loadPatients();
+                }
+            } catch (error) {
+                showResult('patientResult', { error: error.message }, false);
+            }
+        }
+
+        // Load patients for story creation
+        async function loadPatients() {
+            try {
+                const response = await fetch('/api/patients');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const select = document.getElementById('patientSelect');
+                    select.innerHTML = '<option value="">בחר מטופל</option>';
+                    
+                    result.patients.forEach(patient => {
+                        const option = document.createElement('option');
+                        option.value = patient.patient_id;
+                        option.textContent = patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading patients:', error);
+            }
+        }
+
+        // Test story creation
+        async function testAddStory() {
+            const storyData = {
+                patient_id: document.getElementById('patientSelect').value,
+                story_type: document.getElementById('storyType').value,
+                exposure_level: document.getElementById('exposureLevel').value,
+                content: document.getElementById('storyContent').value
+            };
+
+            if (!storyData.patient_id) {
+                showResult('storyResult', { error: 'Please select a patient first' }, false);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/stories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(storyData)
+                });
+
+                const result = await response.json();
+                showResult('storyResult', result, response.ok);
+            } catch (error) {
+                showResult('storyResult', { error: error.message }, false);
+            }
+        }
+
+        // Test search functionality
+        async function testSearch() {
+            const query = document.getElementById('searchQuery').value;
+            
+            try {
+                const response = await fetch('/api/patients');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const filteredPatients = result.patients.filter(patient => {
+                        const name = patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
+                        return name.toLowerCase().includes(query.toLowerCase());
+                    });
+                    
+                    showResult('searchResult', {
+                        query: query,
+                        results: filteredPatients,
+                        count: filteredPatients.length
+                    });
+                }
+            } catch (error) {
+                showResult('searchResult', { error: error.message }, false);
+            }
+        }
+
+        // Test API endpoints
+        async function testGetPatients() {
+            try {
+                const response = await fetch('/api/patients');
+                const result = await response.json();
+                showResult('apiResult', result, response.ok);
+            } catch (error) {
+                showResult('apiResult', { error: error.message }, false);
+            }
+        }
+
+        async function testGetStories() {
+            try {
+                const response = await fetch('/api/stories');
+                const result = await response.json();
+                showResult('apiResult', result, response.ok);
+            } catch (error) {
+                showResult('apiResult', { error: error.message }, false);
+            }
+        }
+
+        async function testDashboardData() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const result = await response.json();
+                showResult('apiResult', result, response.ok);
+            } catch (error) {
+                showResult('apiResult', { error: error.message }, false);
+            }
+        }
+
+        async function testNotifications() {
+            try {
+                const response = await fetch('/api/notifications');
+                const result = await response.json();
+                showResult('apiResult', result, response.ok);
+            } catch (error) {
+                showResult('apiResult', { error: error.message }, false);
+            }
+        }
+
+        // Load patients on page load
+        window.addEventListener('load', loadPatients);
+    </script>
+</body>
+</html> 
