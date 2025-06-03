@@ -18,6 +18,8 @@ import {
 import { submitSessionFeedback } from '../api';
 import { Picker } from '@react-native-picker/picker';
 import DynamicBackground from '../components/DynamicBackground';
+import { useSession } from '../SessionContext';
+import LottieView from 'lottie-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +40,12 @@ export default function FeedbackScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [showSudModal, setShowSudModal] = useState(false);
+
+  // Badge system
+  const { BADGE_DEFS, badges, unlockBadge } = useSession();
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [unlockedBadge, setUnlockedBadge] = useState(null);
+  const [showGallery, setShowGallery] = useState(false);
 
   // Calculate session duration and format it nicely
   const getSessionSummary = () => {
@@ -125,7 +133,13 @@ export default function FeedbackScreen({ route, navigation }) {
       const result = await submitSessionFeedback(feedbackData);
       
       if (result.status === 'success') {
-    setSubmitted(true);
+        // Award first_feedback badge if not already unlocked
+        if (!badges.includes('first_feedback')) {
+          unlockBadge('first_feedback');
+          setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'first_feedback'));
+          setShowBadgeModal(true);
+        }
+        setSubmitted(true);
         // Navigate back after 3 seconds
         setTimeout(() => {
           navigation.reset({
@@ -171,6 +185,10 @@ export default function FeedbackScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <DynamicBackground />
+      {/* Badge Gallery Button */}
+      <TouchableOpacity style={{ position: 'absolute', top: 36, right: 24, zIndex: 10 }} onPress={() => setShowGallery(true)}>
+        <LottieView source={require('../assets/badge.json')} autoPlay loop style={{ width: 36, height: 36 }} />
+      </TouchableOpacity>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardContainer}
@@ -386,6 +404,83 @@ export default function FeedbackScreen({ route, navigation }) {
           </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
+      {/* Badge Unlock Modal */}
+      <Modal visible={showBadgeModal} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center', width: 320 }}>
+            <LottieView source={require('../assets/badge.json')} autoPlay loop={false} style={{ width: 100, height: 100 }} />
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E40AF', marginTop: 12 }}>הרווחת תג חדש!</Text>
+            {unlockedBadge && (
+              <>
+                <Text style={{ fontWeight: 'bold', color: '#1E40AF', fontSize: 18, marginTop: 8 }}>{unlockedBadge.label}</Text>
+                <Text style={{ color: '#64748B', fontSize: 15, marginTop: 4 }}>{unlockedBadge.desc}</Text>
+              </>
+            )}
+            <TouchableOpacity onPress={() => setShowBadgeModal(false)} style={{ marginTop: 24, backgroundColor: '#1E40AF', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 24 }}>
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>סגור</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {/* Badge Gallery Modal */}
+      <Modal visible={showGallery} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(30,64,175,0.12)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, width: 340, alignItems: 'center', maxHeight: 500, shadowColor: '#1E40AF', shadowOpacity: 0.15, shadowRadius: 16, elevation: 10 }}>
+            <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#1E40AF', marginBottom: 10, letterSpacing: 1 }}>התגים שלי</Text>
+            <Text style={{ color: '#64748B', fontSize: 15, marginBottom: 18 }}>אסוף תגי התמדה, הישגים והפתעות!</Text>
+            <ScrollView style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {BADGE_DEFS.map((badge, idx) => {
+                  const unlocked = badges.includes(badge.key);
+                  return (
+                    <TouchableOpacity
+                      key={badge.key}
+                      activeOpacity={0.8}
+                      style={{ width: 90, alignItems: 'center', margin: 8 }}
+                      onPress={() => unlocked && setUnlockedBadge(badge)}
+                    >
+                      <View style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: 30,
+                        backgroundColor: unlocked ? '#E0F2FE' : '#F1F5F9',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginBottom: 6,
+                        borderWidth: unlocked ? 2 : 1,
+                        borderColor: unlocked ? '#3B82F6' : '#CBD5E1',
+                        shadowColor: unlocked ? '#3B82F6' : '#000',
+                        shadowOpacity: unlocked ? 0.18 : 0.06,
+                        shadowRadius: 6,
+                        elevation: unlocked ? 6 : 2,
+                        overflow: 'hidden',
+                      }}>
+                        <LottieView
+                          source={badge.icon}
+                          autoPlay={unlocked}
+                          loop={unlocked}
+                          style={{ width: 48, height: 48, opacity: unlocked ? 1 : 0.3, filter: unlocked ? undefined : 'grayscale(1)' }}
+                        />
+                        {!unlocked && (
+                          <View style={{
+                            ...StyleSheet.absoluteFillObject,
+                            backgroundColor: 'rgba(255,255,255,0.7)',
+                            borderRadius: 30,
+                          }} />
+                        )}
+                      </View>
+                      <Text style={{ fontWeight: 'bold', color: unlocked ? '#1E40AF' : '#64748B', fontSize: 14, textAlign: 'center' }}>{badge.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+            <TouchableOpacity onPress={() => setShowGallery(false)} style={{ marginTop: 18, backgroundColor: '#1E40AF', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 36, shadowColor: '#1E40AF', shadowOpacity: 0.18, shadowRadius: 8, elevation: 6 }}>
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18, letterSpacing: 1 }}>סגור</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

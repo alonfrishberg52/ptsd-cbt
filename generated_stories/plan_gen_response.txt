@@ -1,41 +1,18 @@
 Plan:
-[{'role': 'system', 'content': [{'type': 'text', 'text': "You are a psychologist treating a PTSD patient using CBT. \nThe scene will be described in 3 parts.\nPart 1 includes the settings - including an plan for a stressful situation.\nIn part 2 the patient arrives to the stressful situation and dwells in it\nIn part 3 there is a positive resolution of the situation.\nYour role is to generate the skeleton for the story of each part, including each trigger and how many words will be used to describe it.\n\nThe plan includes each trigger, how involved the patient is with this trigger (e.g. how far it is from the patient), and the number of words that would be dedicated for the corresponding scene in the story. The plan does not include the SUD level.\nAnxiaty increases as the trigger is closer to the patient.\nAnxiaty increases with the length dedicated to that trigger.\n\nThe plan and story are generated in Hebrew.\nIf a previous plan is provided with a required adjustment to increase or decrease the trigger exposure, edit this plan.\n\nThe plan should NEVER include the traumatic scenes themselves - only triggers from the list of triggers and their SUDs should be used.\nOverall length of each part of the story:\nPart 1: 1000 words. Should focus on planning for the anxiety triggering situation. The plan should come up with some possible real life scenario that would require participating in the triggering situation.\nPart 2: 2000 words. Should describe the situation.\nPart 3: 3000 words. Should gradually decrease the anxiety until resolution with a happy ending. To decrease the anxiety you can use the items that the patient defined as calming him.\nThe plan only indicates the number of words related to the trigger out of the work capacity for that part.\nThe plan for the scenario should be consistent in aspect of the people in the scene (people can't appear and disappear without context). \nThe plan describes the chosen scenario and not the CBT treatmetn itself. \nDo not use any trigger that doesn't appear in the patient's triggers list with the corresponding SUD.\n\n"}]}, {'role': 'user', 'content': [{'type': 'text', 'text': "Patient description:\n{'first_name': 'אלון ', 'last_name': 'פרישברג', 'gender': 'זכר', 'birthdate': '1996-02-05', 'age': '29', 'city': 'ראשון ', 'street': 'הורוביץ ', 'house_number': '2', 'education': '', 'occupation': '', 'hobbies': ['קולנוע', 'טיולים', 'קריאה'], 'pet': None, 'ptsd_symptoms': ['סיוטים', 'עוררות יתר', 'צעקות'], 'general_symptoms': {'intrusion': 3, 'arousal': 3, 'thoughts': 3, 'avoidance': 4}, 'main_avoidances': [], 'patient_id': '93326eb5-7a3e-4080-b261-6c42fead9647', 'name': 'אלון  פרישברג', 'avoidances': [], 'pcl5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0], 'phq9': [2, 2, 3, 0, 0, 1, 0, 0, 0], 'somatic': {}, 'triggers': [], 'general_info': 'בדיקה', 'last_session_date': datetime.datetime(2025, 6, 3, 12, 50, 4, 489000), 'last_session_type': 'יצאת', 'session_count': 1}\n\nPrevious plan to adjust:\nNone\nPrevious plan SUD level: 50\nPrevious analysis: N/A\nTarget SUD range: 30-50\n\nAdjustment needed: None\nGenerate plan for part 1"}]}]
+[{'role': 'system', 'content': [{'type': 'text', 'text': "You are a psychologist treating a PTSD patient using CBT. \nThe scene will be described in 3 parts.\nPart 1 includes the settings - including an plan for a stressful situation.\nIn part 2 the patient arrives to the stressful situation and dwells in it\nIn part 3 there is a positive resolution of the situation.\nYour role is to generate the skeleton for the story of each part, including each trigger and how many words will be used to describe it.\n\nThe plan includes each trigger, how involved the patient is with this trigger (e.g. how far it is from the patient), and the number of words that would be dedicated for the corresponding scene in the story. The plan does not include the SUD level.\nAnxiaty increases as the trigger is closer to the patient.\nAnxiaty increases with the length dedicated to that trigger.\n\nThe plan and story are generated in Hebrew.\nIf a previous plan is provided with a required adjustment to increase or decrease the trigger exposure, edit this plan.\n\nThe plan should NEVER include the traumatic scenes themselves - only triggers from the list of triggers and their SUDs should be used.\nOverall length of each part of the story:\nPart 1: 1000 words. Should focus on planning for the anxiety triggering situation. The plan should come up with some possible real life scenario that would require participating in the triggering situation.\nPart 2: 2000 words. Should describe the situation.\nPart 3: 3000 words. Should gradually decrease the anxiety until resolution with a happy ending. To decrease the anxiety you can use the items that the patient defined as calming him.\nThe plan only indicates the number of words related to the trigger out of the work capacity for that part.\nThe plan for the scenario should be consistent in aspect of the people in the scene (people can't appear and disappear without context). \nThe plan describes the chosen scenario and not the CBT treatmetn itself. \nDo not use any trigger that doesn't appear in the patient's triggers list with the corresponding SUD.\n\n"}]}, {'role': 'user', 'content': [{'type': 'text', 'text': "Patient description:\n{'first_name': 'אלון ', 'last_name': 'פרישברג', 'gender': 'זכר', 'birthdate': '1996-02-05', 'age': '29', 'city': 'ראשון ', 'street': 'הורוביץ ', 'house_number': '2', 'education': '', 'occupation': '', 'hobbies': ['קולנוע', 'טיולים', 'קריאה'], 'pet': None, 'ptsd_symptoms': ['סיוטים', 'עוררות יתר', 'צעקות'], 'general_symptoms': {'intrusion': 3, 'arousal': 3, 'thoughts': 3, 'avoidance': 4}, 'main_avoidances': [], 'patient_id': '93326eb5-7a3e-4080-b261-6c42fead9647', 'name': 'אלון  פרישברג', 'avoidances': [], 'pcl5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0], 'phq9': [2, 2, 3, 0, 0, 1, 0, 0, 0], 'somatic': {}, 'triggers': [], 'general_info': 'בדיקה', 'last_session_date': datetime.datetime(2025, 6, 3, 14, 11, 20, 829000), 'last_session_type': 'מושלם', 'session_count': 2}\n\nPrevious plan to adjust:\nNone\nPrevious plan SUD level: 40\nPrevious analysis: N/A\nTarget SUD range: 30-50\n\nAdjustment needed: None\nGenerate plan for part 1"}]}]
 
-Given the patient's description, it seems there are no specific triggers provided for אלון פרישברג. To create a suitable plan for part 1, we will develop a hypothetical scenario based on his hobbies and general symptoms. Since there are no specific triggers listed, we'll focus on a general situation that could involve mild anxiety based on his symptoms such as 'עוררות יתר' (hyperarousal) and 'צעקות' (shouting). 
+Given that there are no specific triggers provided in the patient's description, we'll need to create a hypothetical situation that could potentially trigger anxiety or stress based on typical PTSD-related scenarios. We'll assume some common triggers such as crowded places, loud noises, or unexpected changes. For the purpose of this exercise, let's devise a plan that involves a scenario related to אלון's hobbies, which could naturally lead to encountering these triggers.
 
-### Scenario Plan for Part 1 (1000 words):
+### Plan for Part 1: Preparation for a Cinema Outing
 
-**Scenario Setting:**
-- **Objective:** Plan for attending a social event, such as a film screening, which could involve mild stressors.
-- **Location:** Local cinema in ראשון.
-- **Participants:** אלון, a friend, and other cinema-goers.
+**Scenario**: אלון plans to visit a cinema to watch a new movie release. This situation is chosen because it aligns with his hobby and may naturally involve potential triggers such as crowds and loud noises.
 
-**Triggers and Word Allocation:**
-1. **Crowd at Cinema Entrance (200 words):**
-   - Trigger: Presence of a small crowd at the entrance.
-   - Involvement: Standing in line, mild increase in arousal.
+1. **Identifying the Cinema** - אלון decides on a cinema that is known to have a comfortable environment. (150 words)
+2. **Buying Tickets** - He considers buying tickets online to avoid the queue but decides to buy them at the cinema to practice coping with potential crowds. (200 words)
+3. **Choosing the Movie** - He selects a movie that he finds interesting and not too intense, avoiding genres that could be triggering. (150 words)
+4. **Travel Arrangements** - Planning the route to the cinema, considering public transportation which might be crowded. (150 words)
+5. **Companion** - He decides to invite a friend to accompany him, providing emotional support and distraction. (100 words)
+6. **Time of Visit** - Choosing a less crowded time, such as an early afternoon show. (100 words)
+7. **Coping Strategies** - Preparing mental strategies and breathing exercises to manage anxiety if it arises. (150 words)
 
-2. **Friend's Arrival (100 words):**
-   - Trigger: Sudden loud greeting from a friend.
-   - Involvement: Close interaction, momentary increase in hyperarousal.
-
-3. **Finding Seats in the Cinema (150 words):**
-   - Trigger: Navigating through a semi-crowded cinema hall.
-   - Involvement: Moving past people, moderate arousal.
-
-4. **Loud Film Trailer (150 words):**
-   - Trigger: Sudden loud sounds from a movie trailer.
-   - Involvement: Proximity to speakers, brief spike in arousal.
-
-5. **Settling Down for the Movie (200 words):**
-   - Trigger: Adjusting to the environment and loud background chatter.
-   - Involvement: Sitting down, focusing on calming down.
-
-6. **Internal Thoughts and Anticipation (200 words):**
-   - Trigger: Anticipation of the movie, internal dialogue.
-   - Involvement: Reflecting on potential anxiety, preparing mentally.
-
-**Overall Theme:**
-- The plan focuses on creating a controlled environment where אלון can anticipate potential anxiety triggers while engaging in a hobby he enjoys, thus balancing exposure with comfort.
-
-This plan sets the stage for a realistic scenario where אלון can experience potential stressors related to his PTSD symptoms in a manageable way. The goal is to allow him to engage in an activity he enjoys while preparing for possible triggers, setting the groundwork for Part 2.
+This plan provides a structure to gradually expose אלון to potentially triggering situations in a controlled and planned manner, with the aim of helping him practice coping strategies in a real-world setting.

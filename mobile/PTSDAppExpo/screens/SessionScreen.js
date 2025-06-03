@@ -59,9 +59,11 @@ export default function SessionScreen({ route, navigation }) {
   const [sudRequiredModalVisible, setSudRequiredModalVisible] = useState(false);
 
   // Gamification context
-  const { addCoins, unlockTrophy, trophies, TROPHY_DEFS, coins } = useSession();
+  const { addCoins, unlockTrophy, trophies, TROPHY_DEFS, coins, BADGE_DEFS, badges, unlockBadge, avatar } = useSession();
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [newTrophy, setNewTrophy] = useState(null);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [unlockedBadge, setUnlockedBadge] = useState(null);
 
   // SUD options (10-100 with 10-point jumps)
   const sudOptions = [
@@ -366,12 +368,12 @@ export default function SessionScreen({ route, navigation }) {
     };
   }, []);
 
-  // Award coins/trophies on session completion
+  // Award coins/trophies/badges on session completion
   useEffect(() => {
     if (sessionState === 'completed') {
       // Award coins
       addCoins(10);
-      // First session trophy
+      // Trophies
       if (!trophies.includes('first_session')) {
         unlockTrophy('first_session');
         setNewTrophy(TROPHY_DEFS.find(t => t.key === 'first_session'));
@@ -385,6 +387,26 @@ export default function SessionScreen({ route, navigation }) {
         setNewTrophy(null);
       }
       setShowRewardModal(true);
+
+      // BADGES: 10 sessions badge
+      if (!badges.includes('ten_sessions') && coins + 10 >= 100) {
+        unlockBadge('ten_sessions');
+        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'ten_sessions'));
+        setShowBadgeModal(true);
+      }
+      // BADGES: streaks (dummy logic, replace with real streak tracking)
+      // Example: if user has a 3-day streak
+      const streak = 3; // TODO: Replace with real streak logic
+      if (!badges.includes('streak_3') && streak >= 3) {
+        unlockBadge('streak_3');
+        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'streak_3'));
+        setShowBadgeModal(true);
+      }
+      if (!badges.includes('streak_7') && streak >= 7) {
+        unlockBadge('streak_7');
+        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'streak_7'));
+        setShowBadgeModal(true);
+      }
     }
   }, [sessionState]);
 
@@ -623,6 +645,25 @@ export default function SessionScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <DynamicBackground />
+      {/* Avatar Preview */}
+      <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 2 }}>
+        <View style={{ alignItems: 'center' }}>
+          {/* Face (skin) */}
+          <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 2, backgroundColor: '#fff', borderWidth: 2, borderColor: '#3B82F6' }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: getSkinColor(avatar?.skin), alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              {/* Eyes */}
+              <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 14 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, marginHorizontal: 2, backgroundColor: getEyeColor(avatar?.eyes), borderWidth: 1, borderColor: '#222' }} />
+                <View style={{ width: 6, height: 6, borderRadius: 3, marginHorizontal: 2, backgroundColor: getEyeColor(avatar?.eyes), borderWidth: 1, borderColor: '#222' }} />
+              </View>
+              {/* Hair */}
+              <View style={{ position: 'absolute', top: 0, left: 6, right: 6, height: 12, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: getHairColor(avatar?.hair), zIndex: 2 }} />
+            </View>
+          </View>
+          {/* Shirt */}
+          <View style={{ width: 26, height: 12, borderRadius: 6, backgroundColor: getShirtColor(avatar?.shirt), marginTop: -4 }} />
+        </View>
+      </View>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header with controls */}
         <View style={styles.sessionHeader}>
@@ -761,6 +802,34 @@ export default function SessionScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
+      {/* Loader overlay for next chapter/session finish */}
+      {loading && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(30,64,175,0.12)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 100,
+        }}>
+          <LottieView
+            source={require('../assets/loader.json')}
+            autoPlay
+            loop
+            style={{ width: 180, height: 180 }}
+          />
+          <Text style={{ fontSize: 20, color: '#2563EB', fontWeight: '700', marginTop: 32, textAlign: 'center' }}>
+            טוען את הפרק הבא...
+          </Text>
+          <Text style={{ fontSize: 16, color: '#64748B', marginTop: 12, textAlign: 'center' }}>
+            אנא המתן בסבלנות
+          </Text>
+        </View>
+      )}
+
       {/* Modals */}
       <SudDropdown
         visible={showSudDropdown}
@@ -793,6 +862,25 @@ export default function SessionScreen({ route, navigation }) {
         visible={sudRequiredModalVisible}
         onClose={() => setSudRequiredModalVisible(false)}
       />
+
+      {/* Badge Unlock Modal */}
+      <Modal visible={showBadgeModal} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center', width: 320 }}>
+            <LottieView source={require('../assets/badge.json')} autoPlay loop={false} style={{ width: 100, height: 100 }} />
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E40AF', marginTop: 12 }}>הרווחת תג חדש!</Text>
+            {unlockedBadge && (
+              <>
+                <Text style={{ fontWeight: 'bold', color: '#1E40AF', fontSize: 18, marginTop: 8 }}>{unlockedBadge.label}</Text>
+                <Text style={{ color: '#64748B', fontSize: 15, marginTop: 4 }}>{unlockedBadge.desc}</Text>
+              </>
+            )}
+            <TouchableOpacity onPress={() => setShowBadgeModal(false)} style={{ marginTop: 24, backgroundColor: '#1E40AF', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 24 }}>
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>סגור</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1346,4 +1434,44 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-}); 
+});
+
+function getHairColor(key) {
+  switch (key) {
+    case 'short': return '#8D5524';
+    case 'long': return '#C68642';
+    case 'blonde': return '#E0C068';
+    case 'black': return '#222';
+    default: return '#8D5524';
+  }
+}
+
+function getEyeColor(key) {
+  switch (key) {
+    case 'blue': return '#4F8EF7';
+    case 'green': return '#4FC36E';
+    case 'brown': return '#8D5524';
+    case 'gray': return '#A0A0A0';
+    default: return '#4F8EF7';
+  }
+}
+
+function getShirtColor(key) {
+  switch (key) {
+    case 'red': return '#EF4444';
+    case 'blue': return '#3B82F6';
+    case 'green': return '#10B981';
+    case 'yellow': return '#FACC15';
+    default: return '#3B82F6';
+  }
+}
+
+function getSkinColor(key) {
+  switch (key) {
+    case 'light': return '#F9D7B5';
+    case 'tan': return '#E0AC69';
+    case 'brown': return '#8D5524';
+    case 'dark': return '#5C4033';
+    default: return '#F9D7B5';
+  }
+} 

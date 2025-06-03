@@ -22,6 +22,7 @@ import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSession } from '../SessionContext';
 import DynamicBackground from '../components/DynamicBackground';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +42,10 @@ export default function WelcomeScreen({ navigation }) {
   // Gamification state
   const { coins, trophies, TROPHY_DEFS } = useSession();
   const [showTrophyModal, setShowTrophyModal] = useState(false);
+
+  // Avatar state
+  const { avatar } = useSession();
+  const nav = useNavigation();
 
   // SUD options with proper Hebrew descriptions
   const sudOptions = [
@@ -471,6 +476,27 @@ export default function WelcomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
+          {/* Avatar Preview */}
+          <TouchableOpacity style={{ alignSelf: 'center', marginTop: 18, marginBottom: 8 }} onPress={() => nav.navigate('AvatarCustomization')}>
+            <View style={{ alignItems: 'center' }}>
+              {/* Face (skin) */}
+              <View style={{ width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 2, backgroundColor: '#fff', borderWidth: 2, borderColor: '#3B82F6' }}>
+                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: getSkinColor(avatar.skin), alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                  {/* Eyes */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, marginHorizontal: 3, backgroundColor: getEyeColor(avatar.eyes), borderWidth: 1, borderColor: '#222' }} />
+                    <View style={{ width: 8, height: 8, borderRadius: 4, marginHorizontal: 3, backgroundColor: getEyeColor(avatar.eyes), borderWidth: 1, borderColor: '#222' }} />
+                  </View>
+                  {/* Hair */}
+                  <View style={{ position: 'absolute', top: 0, left: 8, right: 8, height: 18, borderTopLeftRadius: 10, borderTopRightRadius: 10, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: getHairColor(avatar.hair), zIndex: 2 }} />
+                </View>
+              </View>
+              {/* Shirt */}
+              <View style={{ width: 36, height: 18, borderRadius: 9, backgroundColor: getShirtColor(avatar.shirt), marginTop: -4 }} />
+              <Text style={{ color: '#64748B', fontSize: 13, marginTop: 2 }}>האווטאר שלי</Text>
+            </View>
+          </TouchableOpacity>
+
           {/* Logo with therapeutic animation */}
           <Animated.View 
             style={[
@@ -583,6 +609,27 @@ export default function WelcomeScreen({ navigation }) {
               <Text style={[styles.quickActionText, { fontSize: 13 }]}>המפגש הבא עם המטפל</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Encouragement Wall Button */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#3B82F6',
+              borderRadius: 16,
+              paddingVertical: 18,
+              paddingHorizontal: 24,
+              marginTop: 24,
+              alignItems: 'center',
+              shadowColor: '#3B82F6',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.18,
+              shadowRadius: 8,
+              elevation: 6,
+            }}
+            onPress={() => nav.navigate('EncouragementWall')}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>קיר עידוד אנונימי</Text>
+            <Text style={{ color: '#DBEAFE', fontSize: 13, marginTop: 2 }}>שתף/י מסר עידוד או תמיכה</Text>
+          </TouchableOpacity>
         </Animated.View>
 
         {/* Trophy Modal */}
@@ -1533,4 +1580,44 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#3B82F6',
   },
-}); 
+});
+
+function getHairColor(key) {
+  switch (key) {
+    case 'short': return '#8D5524';
+    case 'long': return '#C68642';
+    case 'blonde': return '#E0C068';
+    case 'black': return '#222';
+    default: return '#8D5524';
+  }
+}
+
+function getEyeColor(key) {
+  switch (key) {
+    case 'blue': return '#4F8EF7';
+    case 'green': return '#4FC36E';
+    case 'brown': return '#8D5524';
+    case 'gray': return '#A0A0A0';
+    default: return '#4F8EF7';
+  }
+}
+
+function getShirtColor(key) {
+  switch (key) {
+    case 'red': return '#EF4444';
+    case 'blue': return '#3B82F6';
+    case 'green': return '#10B981';
+    case 'yellow': return '#FACC15';
+    default: return '#3B82F6';
+  }
+}
+
+function getSkinColor(key) {
+  switch (key) {
+    case 'light': return '#F9D7B5';
+    case 'tan': return '#E0AC69';
+    case 'brown': return '#8D5524';
+    case 'dark': return '#5C4033';
+    default: return '#F9D7B5';
+  }
+} 

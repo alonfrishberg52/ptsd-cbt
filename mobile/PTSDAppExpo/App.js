@@ -14,6 +14,8 @@ import SessionScreen from './screens/SessionScreen';
 import PlanListScreen from './screens/PlanListScreen';
 import AuditLogScreen from './screens/AuditLogScreen';
 import ResearchScreen from './screens/ResearchScreen';
+import AvatarCustomizationScreen from './screens/AvatarCustomizationScreen';
+import EncouragementWallScreen from './screens/EncouragementWallScreen';
 import { SessionProvider } from './SessionContext';
 
 const Stack = createStackNavigator();
@@ -35,6 +37,8 @@ export default function App() {
           <Stack.Screen name="Plans" component={PlanListScreen} />
           <Stack.Screen name="AuditLog" component={AuditLogScreen} />
           <Stack.Screen name="Research" component={ResearchScreen} />
+          <Stack.Screen name="AvatarCustomization" component={AvatarCustomizationScreen} options={{ title: 'אווטאר אישי' }} />
+          <Stack.Screen name="EncouragementWall" component={EncouragementWallScreen} options={{ title: 'קיר עידוד' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SessionProvider>

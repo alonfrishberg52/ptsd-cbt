@@ -23,19 +23,40 @@ export function SessionProvider({ children }) {
     { key: 'ten_sessions', label: '10 מפגשים', desc: 'סיימת 10 מפגשים!' },
   ];
 
-  // Load coins/trophies from storage
+  // Badge definitions
+  const BADGE_DEFS = [
+    { key: 'first_feedback', label: 'משוב ראשון', desc: 'שלחת משוב בפעם הראשונה!', icon: require('./assets/badge.json') },
+    { key: 'streak_3', label: 'רצף 3 ימים', desc: 'השלמת 3 ימים ברצף!', icon: require('./assets/badge.json') },
+    { key: 'streak_7', label: 'רצף 7 ימים', desc: 'השלמת שבוע ברצף!', icon: require('./assets/badge.json') },
+    { key: 'ten_sessions', label: '10 מפגשים', desc: 'השלמת 10 מפגשים!', icon: require('./assets/badge.json') },
+    { key: 'lucky_box', label: 'הפתעה!', desc: 'קיבלת בונוס מתיבת הפתעה!', icon: require('./assets/badge.json') },
+  ];
+
+  // Badges state
+  const [badges, setBadges] = useState([]); // array of badge keys
+
+  // Avatar state
+  const [avatar, setAvatar] = useState({ hair: 'short', eyes: 'blue', shirt: 'red', skin: 'light' });
+
+  // Load coins/trophies/badges/avatar from storage
   React.useEffect(() => {
     (async () => {
       const c = await AsyncStorage.getItem('coins');
       const t = await AsyncStorage.getItem('trophies');
+      const b = await AsyncStorage.getItem('badges');
+      const a = await AsyncStorage.getItem('avatar');
       if (c) setCoins(Number(c));
       if (t) setTrophies(JSON.parse(t));
+      if (b) setBadges(JSON.parse(b));
+      if (a) setAvatar(JSON.parse(a));
     })();
   }, []);
 
-  // Save coins/trophies to storage
+  // Save coins/trophies/badges/avatar to storage
   React.useEffect(() => { AsyncStorage.setItem('coins', coins.toString()); }, [coins]);
   React.useEffect(() => { AsyncStorage.setItem('trophies', JSON.stringify(trophies)); }, [trophies]);
+  React.useEffect(() => { AsyncStorage.setItem('badges', JSON.stringify(badges)); }, [badges]);
+  React.useEffect(() => { AsyncStorage.setItem('avatar', JSON.stringify(avatar)); }, [avatar]);
 
   // Add coins
   const addCoins = (amount) => setCoins((prev) => prev + amount);
@@ -50,6 +71,17 @@ export function SessionProvider({ children }) {
     setCoins(0);
     setTrophies([]);
   };
+
+  // Unlock badge
+  const mentdge = (key) => {
+    if (!badges.includes(key)) setBadges((prev) => [...prev, key]);
+  };
+
+  // Reset badges (for testing)
+  const resetBadges = () => setBadges([]);
+
+  // Reset avatar
+  const resetAvatar = () => setAvatar({ hair: 'short', eyes: 'blue', shirt: 'red', skin: 'light' });
 
   // Start story generation in the background
   const startStoryGeneration = (patientObj, sudValue) => {
@@ -101,6 +133,15 @@ export function SessionProvider({ children }) {
         unlockTrophy,
         resetRewards,
         TROPHY_DEFS,
+        // Badges
+        BADGE_DEFS,
+        badges,
+        unlockBadge: mentdge,
+        resetBadges,
+        // Avatar
+        avatar,
+        setAvatar,
+        resetAvatar,
       }}
     >
       {children}

@@ -16,8 +16,7 @@
     </div>
     
     <div class="card-body" style="padding: var(--space-xl);">
-        <!-- Alerts Section -->
-        <div id="alerts-section" style="margin-bottom: var(--space-lg);"></div>
+        <!-- Alerts Section (REMOVED) -->
         
         <!-- Filter Buttons -->
         <div style="margin-bottom: var(--space-xl);">
@@ -66,45 +65,6 @@ function formatDate(dateStr) {
     if (!dateStr) return 'אין מפגשים';
     const d = new Date(dateStr);
     return d.toLocaleDateString('he-IL');
-}
-
-function renderAlerts(patients) {
-    const alerts = [];
-    
-    // Flagged patients
-    const flagged = patients.filter(p => p.flagged);
-    if (flagged.length) {
-        alerts.push(`
-            <div class="alert alert-warning" style="border-radius: var(--radius-lg); border: none; background: rgba(251, 191, 36, 0.1); color: var(--warning-color); border-left: 4px solid var(--warning-color);">
-                <i class="bi bi-flag-fill" style="margin-left: var(--space-sm);"></i>
-                נדרש מעקב עבור: ${flagged.map(p => `<a href="/dashboard/patients/${p.patient_id}" style="font-weight: 700; color: var(--warning-color); text-decoration: underline;">${p.name}</a>`).join(', ')}
-            </div>
-        `);
-    }
-    
-    // No recent session (>14 days)
-    const norecent = patients.filter(p => p.last_session_days_ago !== null && p.last_session_days_ago > 14);
-    if (norecent.length) {
-        alerts.push(`
-            <div class="alert alert-info" style="border-radius: var(--radius-lg); border: none; background: rgba(59, 130, 246, 0.1); color: var(--primary-color); border-left: 4px solid var(--primary-color);">
-                <i class="bi bi-calendar-x" style="margin-left: var(--space-sm);"></i>
-                לא התקיים מפגש ב-14 הימים האחרונים עבור: ${norecent.map(p => `<a href="/dashboard/patients/${p.patient_id}" style="font-weight: 700; color: var(--primary-color); text-decoration: underline;">${p.name}</a>`).join(', ')}
-            </div>
-        `);
-    }
-    
-    // High SUD trend
-    const highsud = patients.filter(p => p.high_sud_trend);
-    if (highsud.length) {
-        alerts.push(`
-            <div class="alert alert-danger" style="border-radius: var(--radius-lg); border: none; background: rgba(239, 68, 68, 0.1); color: var(--danger-color); border-left: 4px solid var(--danger-color);">
-                <i class="bi bi-thermometer-high" style="margin-left: var(--space-sm);"></i>
-                מגמת SUD גבוהה עבור: ${highsud.map(p => `<a href="/dashboard/patients/${p.patient_id}" style="font-weight: 700; color: var(--danger-color); text-decoration: underline;">${p.name}</a>`).join(', ')}
-            </div>
-        `);
-    }
-    
-    document.getElementById('alerts-section').innerHTML = alerts.join('');
 }
 
 function renderGrid(patients) {
@@ -298,7 +258,6 @@ function fetchAndUpdateOverview(showToastOnChange = false) {
             }
             allPatients = data.patients;
             lastOverviewData = JSON.parse(JSON.stringify(data.patients));
-            renderAlerts(allPatients);
             applyFilter();
         })
         .catch(error => {
