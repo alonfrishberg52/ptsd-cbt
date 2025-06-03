@@ -37,6 +37,7 @@ export default function FeedbackScreen({ route, navigation }) {
   const [comments, setComments] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showSudModal, setShowSudModal] = useState(false);
 
   // Calculate session duration and format it nicely
   const getSessionSummary = () => {
@@ -234,22 +235,44 @@ export default function FeedbackScreen({ route, navigation }) {
               <Text style={styles.cardTitle}>רמת החרדה הסופית (SUD)</Text>
               <Text style={styles.cardSubtitle}>איך אתה מרגיש עכשיו? (10-100)</Text>
               
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={finalSUD}
-                  onValueChange={setFinalSUD}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItem}
-                >
-                  {Array.from({length: 10}, (_, i) => (10 + i * 10)).map(value => (
-                    <Picker.Item 
-                      key={value} 
-                      label={`${value} - ${getSUDDescription(value)}`} 
-                      value={value} 
-                    />
-                  ))}
-                </Picker>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.customPickerContainer}
+                onPress={() => setShowSudModal(true)}
+              >
+                <Text style={styles.customPickerText}>
+                  {finalSUD} - {getSUDDescription(finalSUD)}
+                </Text>
+                <Text style={styles.customPickerArrow}>▼</Text>
+              </TouchableOpacity>
+              <Modal visible={showSudModal} transparent animationType="fade">
+                <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowSudModal(false)}>
+                  <View style={styles.sudModalContent}>
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                      {Array.from({length: 10}, (_, i) => (10 + i * 10)).map(value => (
+                        <TouchableOpacity
+                          key={value}
+                          style={[
+                            styles.sudModalItem,
+                            finalSUD === value && styles.sudModalItemSelected
+                          ]}
+                          onPress={() => {
+                            setFinalSUD(value);
+                            setShowSudModal(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.sudModalItemText,
+                            finalSUD === value && styles.sudModalItemTextSelected
+                          ]}>
+                            {value} - {getSUDDescription(value)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </TouchableOpacity>
+              </Modal>
             </View>
 
             {/* Rating Scales */}
@@ -711,5 +734,71 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  customPickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginTop: 8,
+    marginBottom: 4,
+    minHeight: 50,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  customPickerText: {
+    fontSize: 17,
+    color: '#1E293B',
+    fontWeight: '600',
+  },
+  customPickerArrow: {
+    fontSize: 18,
+    color: '#64748B',
+    marginLeft: 8,
+  },
+  sudModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 12,
+    marginHorizontal: 32,
+    marginTop: 120,
+    maxHeight: 350,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  sudModalItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  sudModalItemSelected: {
+    backgroundColor: '#E0F2FE',
+  },
+  sudModalItemText: {
+    fontSize: 16,
+    color: '#1E293B',
+    textAlign: 'right',
+  },
+  sudModalItemTextSelected: {
+    color: '#2563EB',
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }); 
