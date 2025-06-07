@@ -38,6 +38,9 @@ export function SessionProvider({ children }) {
   // Avatar state
   const [avatar, setAvatar] = useState({ hair: 'short', eyes: 'blue', shirt: 'red', skin: 'light' });
 
+  // Session dates state (for streaks)
+  const [sessionDates, setSessionDates] = useState([]); // array of ISO date strings (YYYY-MM-DD)
+
   // Load coins/trophies/badges/avatar from storage
   React.useEffect(() => {
     (async () => {
@@ -58,6 +61,15 @@ export function SessionProvider({ children }) {
   React.useEffect(() => { AsyncStorage.setItem('badges', JSON.stringify(badges)); }, [badges]);
   React.useEffect(() => { AsyncStorage.setItem('avatar', JSON.stringify(avatar)); }, [avatar]);
 
+  // Load sessionDates from storage
+  React.useEffect(() => {
+    (async () => {
+      const d = await AsyncStorage.getItem('sessionDates');
+      if (d) setSessionDates(JSON.parse(d));
+    })();
+  }, []);
+  React.useEffect(() => { AsyncStorage.setItem('sessionDates', JSON.stringify(sessionDates)); }, [sessionDates]);
+
   // Add coins
   const addCoins = (amount) => setCoins((prev) => prev + amount);
 
@@ -73,7 +85,7 @@ export function SessionProvider({ children }) {
   };
 
   // Unlock badge
-  const mentdge = (key) => {
+  const unlockBadge = (key) => {
     if (!badges.includes(key)) setBadges((prev) => [...prev, key]);
   };
 
@@ -83,12 +95,52 @@ export function SessionProvider({ children }) {
   // Reset avatar
   const resetAvatar = () => setAvatar({ hair: 'short', eyes: 'blue', shirt: 'red', skin: 'light' });
 
+  // Add a session date (YYYY-MM-DD)
+  const addSessionDate = (dateStr) => {
+    setSessionDates((prev) => {
+      if (!prev.includes(dateStr)) {
+        return [...prev, dateStr];
+      }
+      return prev;
+    });
+  };
+
+  // Calculate current streak (consecutive days up to today)
+  const getSessionStreak = () => {
+    if (!sessionDates.length) return 0;
+    const sorted = [...sessionDates].sort();
+    let streak = 0;
+    let today = new Date();
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      const d = new Date(sorted[i]);
+      if (
+        d.getFullYear() === today.getFullYear() &&
+        d.getMonth() === today.getMonth() &&
+        d.getDate() === today.getDate()
+      ) {
+        streak++;
+        today.setDate(today.getDate() - 1);
+      } else if (
+        d.getFullYear() === today.getFullYear() &&
+        d.getMonth() === today.getMonth() &&
+        d.getDate() === today.getDate()
+      ) {
+        // already counted
+        continue;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
+
   // Start story generation in the background
   const startStoryGeneration = (patientObj, sudValue) => {
     setPatient(patientObj);
     setSUD(sudValue);
     setIsLoading(true);
     setStoryResult(null);
+    console.log('[Session] Calling startScenario for', patientObj.patient_id, sudValue);
     // Start the API call and store the promise
     const promise = startScenario(patientObj.patient_id, sudValue)
       .then((response) => {
@@ -124,7 +176,7 @@ export function SessionProvider({ children }) {
         storyResult,
         isLoading,
         startStoryGeneration,
-        storyPromise: storyPromiseRef.current,
+        getStoryPromise: () => storyPromiseRef.current,
         resetSession,
         // Gamification
         coins,
@@ -136,12 +188,16 @@ export function SessionProvider({ children }) {
         // Badges
         BADGE_DEFS,
         badges,
-        unlockBadge: mentdge,
+        unlockBadge,
         resetBadges,
         // Avatar
         avatar,
         setAvatar,
         resetAvatar,
+        // Session streak
+        sessionDates,
+        addSessionDate,
+        getSessionStreak,
       }}
     >
       {children}

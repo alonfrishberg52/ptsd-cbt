@@ -6,21 +6,23 @@ from flask import Flask, render_template, request, jsonify, send_file, session, 
 from flask_pymongo import PyMongo
 from datetime import datetime, timedelta
 import os
-from agents.PTSDAgents import OrchestratorAgent, summarize_story_llm
-from agents.PTSDEvalTools import PatientDataParser
-from services.exposure import ExposureProgressionService
+from agents.ptsd_treatment_agents import OrchestratorAgent, summarize_story_llm, client as llm_client
+from agents.patient_data_parser import PatientDataParser
+from services.exposure_therapy_service import ExposureProgressionService
 from services.exposure_plan_service import ExposurePlanService
-from services.mcp_integration import mcp_provider
-from services.mcp_knowledge_graph_client import mcp_client
 from bson import ObjectId
 import uuid
 from flask_cors import CORS
 import socket
-from utils.exa_client import (
+from enum import Enum
+from utils.research_search_client import (
     search_ptsd_research, search_cbt_techniques, search_exposure_therapy_methods,
     search_sud_scale_research, search_narrative_therapy_ptsd, search_therapist_resources,
     search_patient_coping_strategies, search_trauma_triggers_management
 )
+from utils.data_normalization import normalize_patient_data
+from dataclasses import asdict, is_dataclass
+import json
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
@@ -82,6 +84,8 @@ def parse_patient_data():
 
 @app.route('/api/start-scenario', methods=['POST'])
 def start_scenario():
+    print('--- /api/start-scenario endpoint called ---')
+    print('Request data:', request.json)
     data = request.json
     initial_sud = data.get('initial_sud')
     if initial_sud is None:
@@ -107,6 +111,50 @@ def start_scenario():
         last_sud=initial_sud,
         previous_parts=None
     )
+    # --- Serialize dataclasses in result (e.g., HabituationAnalysis) ---
+    def serialize_dataclasses(obj):
+        if hasattr(obj, '__dataclass_fields__'):
+            return asdict(obj)
+        elif isinstance(obj, Enum):
+            return obj.value
+        elif isinstance(obj, dict):
+            return {k: serialize_dataclasses(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [serialize_dataclasses(i) for i in obj]
+        else:
+            return obj
+        
+    result = serialize_dataclasses(result)
+    # Remove only the problematic HabituationAnalysis (habituation_feedback) from result
+    if isinstance(result, dict) and 'habituation_feedback' in result:
+        del result['habituation_feedback']
+    if isinstance(result, dict) and 'dialogue_feedback' in result:
+        del result['dialogue_feedback']
+    if isinstance(result, dict) and 'rule_feedback' in result:
+        del result['rule_feedback']
+        
+    # Save problematic feedback locally for dev monitoring (before saving to MongoDB)
+    feedback_to_log = {}
+    if isinstance(result, dict):
+        if 'habituation_feedback' in result:
+            feedback_to_log['habituation_feedback'] = str(result['habituation_feedback'])
+        if 'dialogue_feedback' in result:
+            feedback_to_log['dialogue_feedback'] = str(result['dialogue_feedback'])
+    if feedback_to_log:
+        now = datetime()
+        feedback_to_log['timestamp'] = now.isoformat()
+        feedback_to_log['patient_id'] = patient_id
+        feedback_to_log['stage'] = 1  # since this is start_scenario, stage is always 1
+        feedback_to_log['feedback_id'] = f"{patient_id}_{now.strftime('%Y%m%dT%H%M%S%f')}_stage1"
+        with open('local_feedback_log.jsonl', 'a', encoding='utf-8') as f:
+            f.write(json.dumps(feedback_to_log, ensure_ascii=False) + '\n')
+    # Remove problematic fields containing Enums before saving to MongoDB
+    if isinstance(result, dict):
+        if 'habituation_feedback' in result:
+            del result['habituation_feedback']
+        if 'dialogue_feedback' in result:
+            del result['dialogue_feedback']
+    
     # Save to MongoDB
     story_doc = {
         'patient_id': patient_id,
@@ -330,8 +378,7 @@ def create_patient():
             'general_info': request.form.get('general_info', ''),
         }
         # PTSD symptoms (comma separated)
-        ptsd_symptoms = request.form.get('ptsd_symptoms', '')
-        data['ptsd_symptoms'] = [s.strip() for s in ptsd_symptoms.split(',') if s.strip()]
+        data['ptsd_symptoms'] = [s.strip() for s in data['ptsd_symptoms']]
         # General symptoms (ratings)
         general_symptoms = {}
         for key, label in [
@@ -346,21 +393,16 @@ def create_patient():
                 general_symptoms[key] = int(val)
         data['general_symptoms'] = general_symptoms
         # Main avoidances (comma separated)
-        main_avoidances = request.form.get('main_avoidances', '')
-        data['main_avoidances'] = [s.strip() for s in main_avoidances.split(',') if s.strip()]
+        data['main_avoidances'] = [s.strip() for s in data['main_avoidances']]
         # Triggers (list of {name, SUD 0-100})
-        triggers = request.form.getlist('triggers[]')
-        triggers_sud = request.form.getlist('triggers_sud[]')
         data['triggers'] = [
             {'name': t, 'sud': int(s) if s else None}
-            for t, s in zip(triggers, triggers_sud) if t.strip()
+            for t, s in zip(data['triggers'], data['triggers_sud']) if t.strip()
         ]
         # Avoidance situations (list of {name, SUD 0-100})
-        avoidances = request.form.getlist('avoidances[]')
-        avoidances_sud = request.form.getlist('avoidances_sud[]')
         data['avoidances'] = [
             {'name': a, 'sud': int(s) if s else None}
-            for a, s in zip(avoidances, avoidances_sud) if a.strip()
+            for a, s in zip(data['avoidances'], data['avoidances_sud']) if a.strip()
         ]
         # Somatic symptoms (by category)
         somatic = {}
@@ -379,6 +421,8 @@ def create_patient():
         data['patient_id'] = str(uuid.uuid4())
         # Add a 'name' field for display
         data['name'] = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
+        # Normalize data before parsing/saving
+        data = normalize_patient_data(data)
         parser = PatientDataParser()
         parsed_data = parser.parse(data)
         mongo.db.patients.insert_one(parsed_data)
@@ -417,8 +461,9 @@ def edit_patient(patient_id):
             'pet': request.form.get('pet'),
             'general_info': request.form.get('general_info', ''),
         }
-        ptsd_symptoms = request.form.get('ptsd_symptoms', '')
-        update['ptsd_symptoms'] = [s.strip() for s in ptsd_symptoms.split(',') if s.strip()]
+        # PTSD symptoms (comma separated)
+        update['ptsd_symptoms'] = [s.strip() for s in update['ptsd_symptoms']]
+        # General symptoms (ratings)
         general_symptoms = {}
         for key, label in [
             ('intrusion', 'דחיקות'),
@@ -431,22 +476,17 @@ def edit_patient(patient_id):
             if val:
                 general_symptoms[key] = int(val)
         update['general_symptoms'] = general_symptoms
-        main_avoidances = request.form.get('main_avoidances', '')
-        update['main_avoidances'] = [s.strip() for s in main_avoidances.split(',') if s.strip()]
-        update['name'] = f"{update.get('first_name', '')} {update.get('last_name', '')}".strip()
+        # Main avoidances (comma separated)
+        update['main_avoidances'] = [s.strip() for s in update['main_avoidances']]
         # Triggers (list of {name, SUD 0-100})
-        triggers = request.form.getlist('triggers[]')
-        triggers_sud = request.form.getlist('triggers_sud[]')
         update['triggers'] = [
             {'name': t, 'sud': int(s) if s else None}
-            for t, s in zip(triggers, triggers_sud) if t.strip()
+            for t, s in zip(update['triggers'], update['triggers_sud']) if t.strip()
         ]
         # Avoidance situations (list of {name, SUD 0-100})
-        avoidances = request.form.getlist('avoidances[]')
-        avoidances_sud = request.form.getlist('avoidances_sud[]')
         update['avoidances'] = [
             {'name': a, 'sud': int(s) if s else None}
-            for a, s in zip(avoidances, avoidances_sud) if a.strip()
+            for a, s in zip(update['avoidances'], update['avoidances_sud']) if a.strip()
         ]
         # Somatic symptoms (by category)
         somatic = {}
@@ -461,6 +501,9 @@ def edit_patient(patient_id):
         # Depression (PHQ-9, 9 items, 0-3)
         phq9 = [int(request.form.get(f'phq9_{i}', 0)) for i in range(1, 10)]
         update['phq9'] = phq9
+        update['name'] = f"{update.get('first_name', '')} {update.get('last_name', '')}".strip()
+        # Normalize data before saving
+        update = normalize_patient_data(update)
         mongo.db.patients.update_one({'patient_id': patient_id}, {'$set': update})
         flash('פרטי המטופל עודכנו בהצלחה!', 'success')
         return redirect(url_for('dashboard_patients'))
@@ -762,6 +805,9 @@ def api_patients():
             # Create composite name for easier search
             patient_data['name'] = f"{patient_data['first_name']} {patient_data['last_name']}"
             
+            # Normalize data before saving
+            patient_data = normalize_patient_data(patient_data)
+            
             # Insert into database
             result = mongo.db.patients.insert_one(patient_data)
             
@@ -787,6 +833,8 @@ def api_patient_detail(patient_id):
         return jsonify({'status': 'success', 'patient': patient})
     elif request.method == 'PUT':
         update_data = request.json
+        # Normalize data before saving
+        update_data = normalize_patient_data(update_data)
         mongo.db.patients.update_one({'patient_id': patient_id}, {'$set': update_data})
         return jsonify({'status': 'success'})
 
@@ -1166,106 +1214,6 @@ def api_trigger_management():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# --- MCP Knowledge Graph Integration ---
-
-@app.route('/api/mcp/initialize-patient', methods=['POST'])
-def api_mcp_initialize_patient():
-    """Initialize patient in MCP Knowledge Graph"""
-    data = request.json
-    patient_id = data.get('patient_id')
-    patient_data = data.get('patient_data')
-    
-    if not patient_id or not patient_data:
-        return jsonify({'status': 'error', 'message': 'Patient ID and data are required'}), 400
-    
-    try:
-        # Initialize in both knowledge graphs
-        mcp_provider.initialize_patient_memory(patient_id, patient_data)
-        
-        log_audit('mcp_initialize', patient_data.get('name', patient_id), 'Patient initialized in MCP Knowledge Graph')
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Patient initialized in MCP Knowledge Graph',
-            'patient_id': patient_id
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/mcp/patient-context/<patient_id>', methods=['GET'])
-def api_mcp_patient_context(patient_id):
-    """Get comprehensive patient context from MCP Knowledge Graph"""
-    try:
-        session_type = request.args.get('session_type', 'general')
-        context = mcp_provider.get_patient_context(patient_id, session_type)
-        
-        return jsonify({
-            'status': 'success',
-            'context': {
-                'patient_id': context.patient_id,
-                'session_type': context.session_type,
-                'current_context': context.current_context,
-                'historical_context': context.historical_context,
-                'similar_cases': context.similar_cases,
-                'recommendations': context.recommendations,
-                'mcp_memory': context.mcp_memory,
-                'metadata': context.metadata
-            }
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/mcp/session-memory', methods=['POST'])
-def api_mcp_update_session():
-    """Update session memory in MCP Knowledge Graph"""
-    data = request.json
-    patient_id = data.get('patient_id')
-    session_data = data.get('session_data')
-    
-    if not patient_id or not session_data:
-        return jsonify({'status': 'error', 'message': 'Patient ID and session data are required'}), 400
-    
-    try:
-        mcp_provider.update_session_memory(patient_id, session_data)
-        
-        log_audit('mcp_session_update', patient_id, f"Session updated: {session_data.get('type', 'unknown')}")
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Session memory updated in MCP Knowledge Graph'
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/mcp/search', methods=['POST'])
-def api_mcp_search():
-    """Search across both knowledge graphs"""
-    data = request.json
-    query = data.get('query', '')
-    
-    if not query:
-        return jsonify({'status': 'error', 'message': 'Search query is required'}), 400
-    
-    try:
-        results = mcp_provider.search_memory(query)
-        
-        return jsonify({
-            'status': 'success',
-            'results': results
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/dev/mcp-memory')
-def dev_mcp_memory():
-    """Developer-only access to MCP Knowledge Graph memory"""
-    # Simple developer authentication - in production, use proper auth
-    dev_key = request.args.get('dev_key')
-    if dev_key != 'mindshift_dev_2024':
-        return "Access Denied - Developer Key Required", 403
-    return render_template('dashboard/mcp_memory.html')
-
-# --- Session Notes Endpoints ---
 
 @app.route('/dashboard/session-notes')
 def dashboard_session_notes():
@@ -1670,10 +1618,6 @@ def api_get_mindfulness_sessions():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/dashboard/mcp-memory')
-def dashboard_mcp_memory():
-    """Redirect to developer-only MCP Memory access"""
-    return redirect('/dev/mcp-memory?dev_key=mindshift_dev_2024')
 
 @app.route('/test-dashboard')
 def test_dashboard():
@@ -1894,7 +1838,7 @@ def generate_chapter_story(patient_id, scenario_state, stage):
             רמת SUD נוכחית: {current_sud}/100. 
             הטריגרים העיקריים: {trigger_text}.
             הפרק צריך להיות עדין ומכין את הקורא לחשיפה מדורגת, מתחיל ברמת חרדה נמוכה.
-            הסיפור צריך להיות באורך של 300-400 מילים בעברית, עם דמויות וסיטואציות שהקורא יכול להזדהות איתן.
+            הסיפור חייב להיות באורך של לפחות 1200 מילים בעברית (לא פחות). אל תסיים לפני שהגעת לאורך זה. אם הגעת לסיום לפני 1200 מילים, הוסף תיאורים, דיאלוגים או פרטים נוספים כדי לעמוד בדרישה.
             התחל בסיטואציה בטוחה ויציבה שקשורה לרקע הטראומה בצורה עדינה.""",
             
             2: f"""צור פרק שני של סיפור טיפולי בעברית עבור {patient_name} עם רקע טראומה של {trauma_context}. 
@@ -1902,7 +1846,7 @@ def generate_chapter_story(patient_id, scenario_state, stage):
             הטריגרים העיקריים: {trigger_text}.
             ההימנעויות העיקריות: {avoidance_text}.
             הפרק צריך להעמיק את החשיפה בצורה מדורגת ובטוחה, להגביר קלות את רמת החרדה.
-            הסיפור צריך להיות באורך של 350-450 מילים בעברית.
+            הסיפור חייב להיות באורך של לפחות 2000 מילים בעברית (לא פחות). אל תסיים לפני שהגעת לאורך זה. אם הגעת לסיום לפני 2000 מילים, הוסף תיאורים, דיאלוגים או פרטים נוספים כדי לעמוד בדרישה.
             הכנס אלמנטים שקשורים לטריגרים בצורה הדרגתית ובטוחה, תוך מתן כלים להתמודדות.""",
             
             3: f"""צור פרק שלישי וסופי של סיפור טיפולי בעברית עבור {patient_name} עם רקע טראומה של {trauma_context}. 
@@ -1910,7 +1854,7 @@ def generate_chapter_story(patient_id, scenario_state, stage):
             הטריגרים העיקריים: {trigger_text}.
             ההימנעויות העיקריות: {avoidance_text}.
             הפרק צריך לסגור את הסיפור בצורה חיובית ומעצימה, להראות התמודדות מוצלחת.
-            הסיפור צריך להיות באורך של 400-500 מילים בעברית.
+            הסיפור חייב להיות באורך של לפחות 3000 מילים בעברית (לא פחות). אל תסיים לפני שהגעת לאורך זה. אם הגעת לסיום לפני 3000 מילים, הוסף תיאורים, דיאלוגים או פרטים נוספים כדי לעמוד בדרישה.
             הדגש את הכוח הפנימי, המשאבים הזמינים, והתקדמות שנעשתה. סיים בהודעה של תקווה וחיזוק."""
         }
         
@@ -1998,6 +1942,45 @@ def generate_chapter_story(patient_id, scenario_state, stage):
                 'generated_at': datetime.utcnow().isoformat()
             }
         }
+
+@app.route('/api/media_suggestions', methods=['POST'])
+def media_suggestions():
+    data = request.json
+    story_text = data.get('story')
+    if not story_text:
+        return jsonify({'status': 'error', 'message': 'Missing story text.'}), 400
+
+    # Improved Prompt for OpenAI
+    prompt = (
+        "Given the following therapy story, suggest: "
+        "1. An image that visually describes the main scene or theme of the story (not just calming, but contextually relevant, e.g., a busy bus station if the story is about that). "
+        "2. A short video topic or YouTube search query that matches the story's main event or setting. "
+        "3. A background sound (Freesound keyword or type) that fits the story's environment or mood. "
+        "Respond in JSON with keys: image, video, sound.\n"
+        f"Story: {story_text}"
+    )
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant for therapy app media suggestions."},
+        {"role": "user", "content": prompt}
+    ]
+    try:
+        result = llm_client.chat_completion(messages, max_tokens=200, temperature=0.4)
+        import json as pyjson
+        # Try to parse the response as JSON
+        content = result['content']
+        try:
+            suggestions = pyjson.loads(content)
+        except Exception:
+            # Fallback: try to extract JSON from text
+            import re
+            match = re.search(r'\{.*\}', content, re.DOTALL)
+            if match:
+                suggestions = pyjson.loads(match.group(0))
+            else:
+                return jsonify({'status': 'error', 'message': 'Could not parse AI response.'}), 500
+        return jsonify({'status': 'success', 'suggestions': suggestions})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

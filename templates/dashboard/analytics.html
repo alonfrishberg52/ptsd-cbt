@@ -1,0 +1,383 @@
+{% extends 'dashboard/base_enhanced.html' %}
+
+{% block title %}ניתוח נתונים - NarraTIVE{% endblock %}
+{% block page_title %}ניתוח נתונים{% endblock %}
+{% block page_description %}דשבורד אנליטיקה מתקדם עם תובנות טיפוליות{% endblock %}
+
+{% block content %}
+<!-- Analytics Dashboard -->
+<div class="analytics-container" style="display: grid; gap: var(--space-xl);">
+
+    <!-- Key Performance Indicators -->
+    <div class="kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-lg);">
+        <div class="kpi-card" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%); color: white; padding: var(--space-xl); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-lg);">
+                <div>
+                    <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: var(--space-xs);">סה״כ מטופלים</div>
+                    <div style="font-size: 2.5rem; font-weight: 800;" id="totalPatients">{{ total_patients or 0 }}</div>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.2); padding: var(--space-md); border-radius: var(--radius-lg);">
+                    <i class="bi bi-people" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-sm); font-size: 0.9rem;">
+                <span class="badge" style="background: rgba(255, 255, 255, 0.2); color: white;">+12%</span>
+                <span style="opacity: 0.8;">מהחודש הקודם</span>
+            </div>
+        </div>
+
+        <div class="kpi-card" style="background: linear-gradient(135deg, var(--success-color) 0%, #16a34a 100%); color: white; padding: var(--space-xl); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-lg);">
+                <div>
+                    <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: var(--space-xs);">מפגשים השבוע</div>
+                    <div style="font-size: 2.5rem; font-weight: 800;" id="weekSessions">24</div>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.2); padding: var(--space-md); border-radius: var(--radius-lg);">
+                    <i class="bi bi-calendar-check" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-sm); font-size: 0.9rem;">
+                <span class="badge" style="background: rgba(255, 255, 255, 0.2); color: white;">+8%</span>
+                <span style="opacity: 0.8;">מהשבוע הקודם</span>
+            </div>
+        </div>
+
+        <div class="kpi-card" style="background: linear-gradient(135deg, var(--accent-color) 0%, #d97706 100%); color: white; padding: var(--space-xl); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-lg);">
+                <div>
+                    <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: var(--space-xs);">ממוצע SUD</div>
+                    <div style="font-size: 2.5rem; font-weight: 800;" id="avgSUD">4.2</div>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.2); padding: var(--space-md); border-radius: var(--radius-lg);">
+                    <i class="bi bi-graph-down" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-sm); font-size: 0.9rem;">
+                <span class="badge" style="background: rgba(255, 255, 255, 0.2); color: white;">-15%</span>
+                <span style="opacity: 0.8;">שיפור מהחודש הקודם</span>
+            </div>
+        </div>
+
+        <div class="kpi-card" style="background: linear-gradient(135deg, var(--secondary-color) 0%, #059669 100%); color: white; padding: var(--space-xl); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-lg);">
+                <div>
+                    <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: var(--space-xs);">שיעור הצלחה</div>
+                    <div style="font-size: 2.5rem; font-weight: 800;" id="successRate">87%</div>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.2); padding: var(--space-md); border-radius: var(--radius-lg);">
+                    <i class="bi bi-trophy" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-sm); font-size: 0.9rem;">
+                <span class="badge" style="background: rgba(255, 255, 255, 0.2); color: white;">+5%</span>
+                <span style="opacity: 0.8;">שיפור מהרבעון הקודם</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row" style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-xl);">
+        <!-- SUD Progress Chart -->
+        <div class="card" style="padding: var(--space-xl);">
+            <div class="card-header" style="margin-bottom: var(--space-lg);">
+                <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: var(--space-md);">
+                    <i class="bi bi-graph-up" style="color: var(--primary-color);"></i>
+                    התקדמות SUD לאורך זמן
+                </h3>
+                <p style="color: var(--text-secondary); margin: 0;">מעקב שיפור בדירוג נוחות סובייקטיבי</p>
+            </div>
+            <div style="height: 400px; position: relative;">
+                <canvas id="sudProgressChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Symptoms -->
+        <div class="card" style="padding: var(--space-xl);">
+            <div class="card-header" style="margin-bottom: var(--space-lg);">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: var(--space-sm);">
+                    <i class="bi bi-list-ol" style="color: var(--warning-color);"></i>
+                    תסמינים נפוצים
+                </h3>
+            </div>
+            <div class="symptoms-list" style="display: flex; flex-direction: column; gap: var(--space-md);">
+                <div class="symptom-item" style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-md); background: var(--bg-subtle); border-radius: var(--radius-lg);">
+                    <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                        <div style="width: 8px; height: 8px; background: var(--warning-color); border-radius: 50%;"></div>
+                        <span style="font-weight: 500;">פלאשבקים</span>
+                    </div>
+                    <span class="badge badge-warning">73%</span>
+                </div>
+                
+                <div class="symptom-item" style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-md); background: var(--bg-subtle); border-radius: var(--radius-lg);">
+                    <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                        <div style="width: 8px; height: 8px; background: var(--primary-color); border-radius: 50%;"></div>
+                        <span style="font-weight: 500;">הימנעות</span>
+                    </div>
+                    <span class="badge badge-primary">68%</span>
+                </div>
+                
+                <div class="symptom-item" style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-md); background: var(--bg-subtle); border-radius: var(--radius-lg);">
+                    <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                        <div style="width: 8px; height: 8px; background: var(--accent-color); border-radius: 50%;"></div>
+                        <span style="font-weight: 500;">דיכאון</span>
+                    </div>
+                    <span class="badge" style="background: var(--accent-color); color: white;">61%</span>
+                </div>
+                
+                <div class="symptom-item" style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-md); background: var(--bg-subtle); border-radius: var(--radius-lg);">
+                    <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                        <div style="width: 8px; height: 8px; background: var(--success-color); border-radius: 50%;"></div>
+                        <span style="font-weight: 500;">חרדה</span>
+                    </div>
+                    <span class="badge badge-success">54%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Treatment Effectiveness & Session Analysis -->
+    <div class="treatment-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl);">
+        <!-- Treatment Effectiveness -->
+        <div class="card" style="padding: var(--space-xl);">
+            <div class="card-header" style="margin-bottom: var(--space-lg);">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: var(--space-sm);">
+                    <i class="bi bi-heart-pulse" style="color: var(--success-color);"></i>
+                    יעילות הטיפול
+                </h3>
+            </div>
+            <div style="height: 300px; position: relative;">
+                <canvas id="effectivenessChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Session Distribution -->
+        <div class="card" style="padding: var(--space-xl);">
+            <div class="card-header" style="margin-bottom: var(--space-lg);">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: var(--space-sm);">
+                    <i class="bi bi-pie-chart" style="color: var(--accent-color);"></i>
+                    התפלגות מפגשים
+                </h3>
+            </div>
+            <div style="height: 300px; position: relative;">
+                <canvas id="sessionDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-time Activity Feed -->
+    <div class="activity-feed card" style="padding: var(--space-xl);">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg);">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: var(--space-sm);">
+                <i class="bi bi-activity" style="color: var(--primary-color);"></i>
+                פעילות בזמן אמת
+            </h3>
+            <button class="btn btn-ghost btn-sm" onclick="refreshActivityFeed()">
+                <i class="bi bi-arrow-clockwise"></i>
+                רענן
+            </button>
+        </div>
+        <div id="activityFeed" style="max-height: 400px; overflow-y: auto;">
+            <!-- Activity items will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    loadRealTimeData();
+    startRealTimeUpdates();
+});
+
+function initializeCharts() {
+    // SUD Progress Chart
+    const sudCtx = document.getElementById('sudProgressChart').getContext('2d');
+    new Chart(sudCtx, {
+        type: 'line',
+        data: {
+            labels: ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני'],
+            datasets: [{
+                label: 'ממוצע SUD',
+                data: [7.2, 6.8, 6.1, 5.5, 4.9, 4.2],
+                borderColor: 'rgb(37, 99, 235)',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+
+    // Treatment Effectiveness Chart
+    const effectCtx = document.getElementById('effectivenessChart').getContext('2d');
+    new Chart(effectCtx, {
+        type: 'bar',
+        data: {
+            labels: ['חשיפה הדרגתית', 'CBT', 'EMDR', 'מיינדפולנס'],
+            datasets: [{
+                label: 'יעילות (%)',
+                data: [87, 79, 82, 71],
+                backgroundColor: [
+                    'rgba(37, 99, 235, 0.8)',
+                    'rgba(34, 197, 94, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(16, 185, 129, 0.8)'
+                ],
+                borderColor: [
+                    'rgb(37, 99, 235)',
+                    'rgb(34, 197, 94)',
+                    'rgb(245, 158, 11)',
+                    'rgb(16, 185, 129)'
+                ],
+                borderWidth: 2,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Session Distribution Chart
+    const sessionCtx = document.getElementById('sessionDistributionChart').getContext('2d');
+    new Chart(sessionCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['מתחיל', 'בינוני', 'מתקדם'],
+            datasets: [{
+                data: [35, 45, 20],
+                backgroundColor: [
+                    'rgb(34, 197, 94)',
+                    'rgb(245, 158, 11)',
+                    'rgb(239, 68, 68)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function loadRealTimeData() {
+    const activityFeed = document.getElementById('activityFeed');
+    const activities = [
+        { icon: 'bi-person-plus', text: 'מטופל חדש נוסף למערכת', time: 'לפני 5 דקות', type: 'success' },
+        { icon: 'bi-journal-text', text: 'סיפור חדש נוצר עבור דני כהן', time: 'לפני 12 דקות', type: 'info' },
+        { icon: 'bi-graph-down', text: 'SUD ירד ל-3 עבור שרה לוי', time: 'לפני 18 דקות', type: 'success' },
+        { icon: 'bi-calendar-check', text: 'מפגש הושלם עם מיכל דוד', time: 'לפני 25 דקות', type: 'primary' },
+        { icon: 'bi-bell', text: 'תזכורת: מפגש עם אבי מזרחי בעוד שעה', time: 'לפני 30 דקות', type: 'warning' }
+    ];
+    
+    activityFeed.innerHTML = activities.map(activity => `
+        <div class="activity-item" style="display: flex; align-items: center; gap: var(--space-md); padding: var(--space-md); border-bottom: 1px solid rgba(0, 0, 0, 0.05); transition: background var(--transition-fast);" onmouseenter="this.style.background='rgba(37, 99, 235, 0.05)'" onmouseleave="this.style.background=''">
+            <div class="activity-icon" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--${activity.type}-color); color: white;">
+                <i class="bi ${activity.icon}"></i>
+            </div>
+            <div class="activity-content" style="flex: 1;">
+                <div style="font-weight: 500; margin-bottom: var(--space-xs);">${activity.text}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">${activity.time}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function refreshActivityFeed() {
+    const button = event.target.closest('button');
+    const icon = button.querySelector('i');
+    
+    icon.style.animation = 'spin 1s linear infinite';
+    
+    setTimeout(() => {
+        loadRealTimeData();
+        icon.style.animation = '';
+    }, 1000);
+}
+
+function startRealTimeUpdates() {
+    // Update data every 30 seconds
+    setInterval(() => {
+        // Simulate data updates
+        const totalPatients = document.getElementById('totalPatients');
+        const currentValue = parseInt(totalPatients.textContent);
+        totalPatients.textContent = currentValue + Math.floor(Math.random() * 2);
+        
+        // Update other metrics randomly
+        if (Math.random() > 0.7) {
+            const avgSUD = document.getElementById('avgSUD');
+            const currentSUD = parseFloat(avgSUD.textContent);
+            avgSUD.textContent = Math.max(1, Math.min(10, currentSUD + (Math.random() - 0.5) * 0.2)).toFixed(1);
+        }
+    }, 30000);
+}
+
+// Add enhanced animations
+const style = document.createElement('style');
+style.textContent = `
+    .kpi-card {
+        transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+    }
+    
+    .kpi-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    
+    .card:hover {
+        box-shadow: var(--shadow-xl);
+        transform: translateY(-2px);
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+        .kpi-row, .charts-row, .treatment-row {
+            grid-template-columns: 1fr !important;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

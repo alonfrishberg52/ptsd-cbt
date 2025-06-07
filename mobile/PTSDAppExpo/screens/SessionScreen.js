@@ -12,58 +12,254 @@ import {
   Modal,
   FlatList,
   Dimensions,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  Image,
+  Platform,
+  Linking
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { startScenario, nextScenario, previousScenario, getAudioUrl, exitSession } from '../api';
 import LottieView from 'lottie-react-native';
 import DynamicBackground from '../components/DynamicBackground';
 import { useSession } from '../SessionContext';
+import { WebView } from 'react-native-webview';
 
 const { width } = Dimensions.get('window');
 
 export default function SessionScreen({ route, navigation }) {
+  // Move ALL hooks to the top, before any return
   const { patient, initialStory, initialStage, initialScenarioState } = route.params;
-  
-  // Session state
-  const [sessionState, setSessionState] = useState('initial'); // 'initial', 'active', 'completed', 'exited'
+  const [sessionState, setSessionState] = useState('initial');
   const [currentStage, setCurrentStage] = useState(initialStage || 1);
   const [story, setStory] = useState(initialStory || null);
   const [sudValue, setSudValue] = useState(50);
   const [loading, setLoading] = useState(false);
   const [scenarioState, setScenarioState] = useState(initialScenarioState || {});
-  
-  // Audio state
   const [audioLoading, setAudioLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [audioStatus, setAudioStatus] = useState('מוכן להשמעה');
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const soundRef = useRef(null);
-
-  // UI state
   const [showSudDropdown, setShowSudDropdown] = useState(false);
   const [showTextSizeMenu, setShowTextSizeMenu] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [showChapterNavigation, setShowChapterNavigation] = useState(false);
   const [textSize, setTextSize] = useState('medium');
-  
-  // Session tracking
   const [sessionStartTime, setSessionStartTime] = useState(null);
   const [sessionEndTime, setSessionEndTime] = useState(null);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [completedChapters, setCompletedChapters] = useState([]);
   const [chaptersCompleted, setChaptersCompleted] = useState(0);
-  
-  // New state for mandatory SUD selection
-  const [hasSelectedSudForCurrentChapter, setHasSelectedSudForCurrentChapter] = useState(true); // Start as true for initial chapter
+  const [hasSelectedSudForCurrentChapter, setHasSelectedSudForCurrentChapter] = useState(true);
   const [sudRequiredModalVisible, setSudRequiredModalVisible] = useState(false);
-
-  // Gamification context
   const { addCoins, unlockTrophy, trophies, TROPHY_DEFS, coins, BADGE_DEFS, badges, unlockBadge, avatar } = useSession();
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [newTrophy, setNewTrophy] = useState(null);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [unlockedBadge, setUnlockedBadge] = useState(null);
+  const [chapterStories, setChapterStories] = useState({});
+  // Media state
+  const [media, setMedia] = useState(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState(null);
+  // Add a ref to track if audio should auto-play
+  const autoPlayAudioRef = useRef(false);
+
+  // All useEffect hooks here
+  useEffect(() => {
+    if (sessionState === 'started') {
+      const startTimeMs = new Date(sessionStartTime).getTime();
+      const interval = setInterval(() => {
+        setSessionDuration(Date.now() - startTimeMs);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [sessionState, sessionStartTime]);
+
+  useEffect(() => {
+    setHasSelectedSudForCurrentChapter(false);
+  }, [currentStage]);
+
+  useEffect(() => {
+    if (!story && patient) {
+      handleStartSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (story && story.story) {
+      setMediaLoading(true);
+      setMediaError(null);
+      const apiUrl = 'http://10.100.102.10:5000/api/media_suggestions';
+      const reqBody = { story: story.story };
+      console.log('Calling media suggestions API:', apiUrl, reqBody);
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reqBody),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            setMedia(data.suggestions);
+            console.log('Media suggestions:', data.suggestions);
+            // If sound is a direct mp3, set flag to auto-play
+            if (data.suggestions?.sound && data.suggestions.sound.endsWith('.mp3')) {
+              autoPlayAudioRef.current = true;
+            } else {
+              autoPlayAudioRef.current = false;
+            }
+          } else {
+            setMediaError(data.message || 'שגיאה בקבלת מדיה');
+            setMedia(null);
+            console.log('Media error:', data.message);
+          }
+        })
+        .catch((err) => {
+          setMediaError('שגיאה בתקשורת עם שרת המדיה');
+          setMedia(null);
+          console.log('Media fetch error:', err);
+        })
+        .finally(() => setMediaLoading(false));
+    }
+  }, [story]);
+
+  // Auto-play audio if direct mp3 when media changes
+  useEffect(() => {
+    if (media?.sound && media.sound.endsWith('.mp3') && autoPlayAudioRef.current) {
+      handlePlayPause();
+      autoPlayAudioRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [media]);
+
+  useEffect(() => {
+    if (currentStage > chaptersCompleted) {
+      setChaptersCompleted(currentStage);
+    }
+  }, [currentStage]);
+
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sessionState === 'completed') {
+      addCoins(10);
+      if (!trophies.includes('first_session')) {
+        unlockTrophy('first_session');
+        setNewTrophy(TROPHY_DEFS.find(t => t.key === 'first_session'));
+      } else if (!trophies.includes('five_sessions') && coins + 10 >= 50) {
+        unlockTrophy('five_sessions');
+        setNewTrophy(TROPHY_DEFS.find(t => t.key === 'five_sessions'));
+      } else if (!trophies.includes('ten_sessions') && coins + 10 >= 100) {
+        unlockTrophy('ten_sessions');
+        setNewTrophy(TROPHY_DEFS.find(t => t.key === 'ten_sessions'));
+      } else {
+        setNewTrophy(null);
+      }
+      setShowRewardModal(true);
+      if (!badges.includes('ten_sessions') && coins + 10 >= 100) {
+        unlockBadge('ten_sessions');
+        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'ten_sessions'));
+        setShowBadgeModal(true);
+      }
+      // Add today's date to sessionDates for streak calculation
+      const todayStr = new Date().toISOString().slice(0, 10);
+      addSessionDate(todayStr);
+      const streak = getSessionStreak();
+      if (!badges.includes('streak_3') && streak >= 3) {
+        unlockBadge('streak_3');
+        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'streak_3'));
+        setShowBadgeModal(true);
+      }
+      if (!badges.includes('streak_7') && streak >= 7) {
+        unlockBadge('streak_7');
+        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'streak_7'));
+        setShowBadgeModal(true);
+      }
+    }
+  }, [sessionState]);
+
+  // Now, after all hooks, do conditional returns
+  if (sessionState === 'completed') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#E0F2FE', justifyContent: 'center', alignItems: 'center' }}>
+        <DynamicBackground />
+        <Modal visible={showRewardModal} transparent animationType="fade">
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center', width: 300 }}>
+              <LottieView source={require('../assets/coins.json')} autoPlay loop={false} style={{ width: 120, height: 120 }} />
+              <Text style={{ color: '#1E40AF', fontSize: 22, fontWeight: 'bold', marginTop: 16 }}>הרווחת 10 מטבעות!</Text>
+              {newTrophy && (
+                <>
+                  <LottieView source={require('../assets/trohpy.json')} autoPlay loop={false} style={{ width: 100, height: 100, marginTop: 8 }} />
+                  <Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold', marginTop: 8 }}>🏆 {newTrophy.label}</Text>
+                  <Text style={{ color: '#64748B', fontSize: 15 }}>{newTrophy.desc}</Text>
+                </>
+              )}
+              <TouchableOpacity onPress={() => setShowRewardModal(false)} style={{ marginTop: 24, backgroundColor: '#1E40AF', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 24 }}>
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>סגור</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        <LottieView
+          source={require('../assets/well_done.json')}
+          autoPlay
+          loop={false}
+          style={{ width: 200, height: 200 }}
+        />
+        <Text style={{ fontSize: 24, color: '#059669', fontWeight: '800', marginTop: 32, textAlign: 'center' }}>
+          כל הכבוד!
+        </Text>
+        <Text style={{ fontSize: 16, color: '#64748B', marginTop: 12, textAlign: 'center' }}>
+          סיימת בהצלחה את המפגש
+        </Text>
+      </SafeAreaView>
+    );
+  }
+  if (!patient) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <DynamicBackground />
+        <View style={styles.errorContainer}>
+          <Text style={styles.header}>שגיאה</Text>
+          <Text style={styles.errorText}>לא נמצאו נתוני מטופל</Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>חזור למסך הקודם</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  if (loading || !story) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#E0F2FE', justifyContent: 'center', alignItems: 'center' }}>
+        <DynamicBackground />
+        <LottieView
+          source={require('../assets/loader.json')}
+          autoPlay
+          loop
+          style={{ width: 200, height: 200 }}
+        />
+        <Text style={{ fontSize: 20, color: '#2563EB', fontWeight: '700', marginTop: 32, textAlign: 'center' }}>
+          יוצרים עבורך סיפור טיפולי אישי...
+        </Text>
+        <Text style={{ fontSize: 16, color: '#64748B', marginTop: 12, textAlign: 'center' }}>
+          נשום עמוק, זה עשוי לקחת מספר שניות
+        </Text>
+      </SafeAreaView>
+    );
+  }
 
   // SUD options (10-100 with 10-point jumps)
   const sudOptions = [
@@ -92,34 +288,6 @@ export default function SessionScreen({ route, navigation }) {
     return option ? option.size : 16;
   };
 
-  // Update session duration timer
-  useEffect(() => {
-    if (sessionState === 'started') {
-      const startTimeMs = new Date(sessionStartTime).getTime();
-      const interval = setInterval(() => {
-        setSessionDuration(Date.now() - startTimeMs);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [sessionState, sessionStartTime]);
-
-  // Add this after state declarations
-  useEffect(() => {
-    // Reset SUD selection requirement for each new chapter
-    setHasSelectedSudForCurrentChapter(false);
-  }, [currentStage]);
-
-  // Add chapterStories state
-  const [chapterStories, setChapterStories] = useState({});
-
-  // Only call startScenario if no initialStory
-  useEffect(() => {
-    if (!story && patient) {
-      handleStartSession();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Start the therapy session
   const handleStartSession = async () => {
     setLoading(true);
@@ -138,7 +306,7 @@ export default function SessionScreen({ route, navigation }) {
       console.log('Start session error:', error);
       Alert.alert('שגיאה', 'שגיאה בתקשורת עם השרת');
     }
-    setLoading(false);
+      setLoading(false);
   };
 
   // Continue to next chapter
@@ -280,24 +448,15 @@ export default function SessionScreen({ route, navigation }) {
     });
   };
 
-  // Update chapters completed when stage changes
-  useEffect(() => {
-    if (currentStage > chaptersCompleted) {
-      setChaptersCompleted(currentStage);
-    }
-  }, [currentStage]);
-
   // Handle audio playback with real TTS
   const handlePlayPause = async () => {
     if (!story?.story) return;
-    
     try {
     if (!soundRef.current) {
         setAudioLoading(true);
-        
-        // Check if we have an audio file from the backend
         if (story.audio_file) {
           const audioUrl = getAudioUrl(story.audio_file);
+          console.log('Audio URL:', audioUrl);
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
             { shouldPlay: true, rate: playbackSpeed },
@@ -307,10 +466,9 @@ export default function SessionScreen({ route, navigation }) {
       setPlaying(true);
           setAudioStatus('מנגן...');
         } else {
-          // Fallback message if no audio file
           Alert.alert('שגיאה', 'קובץ השמע אינו זמין');
+          console.log('No audio_file in story:', story);
         }
-        
         setAudioLoading(false);
     } else {
       const status = await soundRef.current.getStatusAsync();
@@ -322,13 +480,13 @@ export default function SessionScreen({ route, navigation }) {
         await soundRef.current.playAsync();
         setPlaying(true);
           setAudioStatus('מנגן...');
-        }
       }
+    }
     } catch (error) {
       console.log('Audio error:', error);
       setAudioLoading(false);
       Alert.alert('שגיאה', 'שגיאה בהשמעת השמע');
-    }
+  }
   };
 
   // Audio playback status callback
@@ -358,57 +516,6 @@ export default function SessionScreen({ route, navigation }) {
       }
     }
   };
-
-  // Cleanup audio when component unmounts
-  useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-    };
-  }, []);
-
-  // Award coins/trophies/badges on session completion
-  useEffect(() => {
-    if (sessionState === 'completed') {
-      // Award coins
-      addCoins(10);
-      // Trophies
-      if (!trophies.includes('first_session')) {
-        unlockTrophy('first_session');
-        setNewTrophy(TROPHY_DEFS.find(t => t.key === 'first_session'));
-      } else if (!trophies.includes('five_sessions') && coins + 10 >= 50) {
-        unlockTrophy('five_sessions');
-        setNewTrophy(TROPHY_DEFS.find(t => t.key === 'five_sessions'));
-      } else if (!trophies.includes('ten_sessions') && coins + 10 >= 100) {
-        unlockTrophy('ten_sessions');
-        setNewTrophy(TROPHY_DEFS.find(t => t.key === 'ten_sessions'));
-      } else {
-        setNewTrophy(null);
-      }
-      setShowRewardModal(true);
-
-      // BADGES: 10 sessions badge
-      if (!badges.includes('ten_sessions') && coins + 10 >= 100) {
-        unlockBadge('ten_sessions');
-        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'ten_sessions'));
-        setShowBadgeModal(true);
-      }
-      // BADGES: streaks (dummy logic, replace with real streak tracking)
-      // Example: if user has a 3-day streak
-      const streak = 3; // TODO: Replace with real streak logic
-      if (!badges.includes('streak_3') && streak >= 3) {
-        unlockBadge('streak_3');
-        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'streak_3'));
-        setShowBadgeModal(true);
-      }
-      if (!badges.includes('streak_7') && streak >= 7) {
-        unlockBadge('streak_7');
-        setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'streak_7'));
-        setShowBadgeModal(true);
-      }
-    }
-  }, [sessionState]);
 
   const SudDropdown = ({ visible, onClose, onSelect, currentValue }) => (
     <Modal visible={visible} transparent animationType="fade">
@@ -503,8 +610,8 @@ export default function SessionScreen({ route, navigation }) {
 
   const ChapterNavigationModal = ({ visible, onClose, currentStage, onNavigate }) => {
     const availableChapters = [1, 2, 3].filter(chapter => chapter < currentStage);
-    
-    return (
+
+  return (
       <Modal visible={visible} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
           <View style={styles.chapterNavContainer}>
@@ -524,7 +631,7 @@ export default function SessionScreen({ route, navigation }) {
                     <Text style={styles.chapterNavOptionArrow}>←</Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+      </View>
             ) : (
               <Text style={styles.chapterNavEmpty}>
                 אין פרקים קודמים זמינים
@@ -561,85 +668,6 @@ export default function SessionScreen({ route, navigation }) {
     const seconds = Math.floor((durationMs % 60000) / 1000);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
-
-  // Show well_done.json Lottie animation when sessionState is 'completed'
-  if (sessionState === 'completed') {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#E0F2FE', justifyContent: 'center', alignItems: 'center' }}>
-        <DynamicBackground />
-        <Modal visible={showRewardModal} transparent animationType="fade">
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center', width: 300 }}>
-              <LottieView source={require('../assets/coins.json')} autoPlay loop={false} style={{ width: 120, height: 120 }} />
-              <Text style={{ color: '#1E40AF', fontSize: 22, fontWeight: 'bold', marginTop: 16 }}>הרווחת 10 מטבעות!</Text>
-              {newTrophy && (
-                <>
-                  <LottieView source={require('../assets/trohpy.json')} autoPlay loop={false} style={{ width: 100, height: 100, marginTop: 8 }} />
-                  <Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold', marginTop: 8 }}>🏆 {newTrophy.label}</Text>
-                  <Text style={{ color: '#64748B', fontSize: 15 }}>{newTrophy.desc}</Text>
-                </>
-              )}
-              <TouchableOpacity onPress={() => setShowRewardModal(false)} style={{ marginTop: 24, backgroundColor: '#1E40AF', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 24 }}>
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>סגור</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-        <LottieView
-          source={require('../assets/well_done.json')}
-          autoPlay
-          loop={false}
-          style={{ width: 200, height: 200 }}
-        />
-        <Text style={{ fontSize: 24, color: '#059669', fontWeight: '800', marginTop: 32, textAlign: 'center' }}>
-          כל הכבוד!
-        </Text>
-        <Text style={{ fontSize: 16, color: '#64748B', marginTop: 12, textAlign: 'center' }}>
-          סיימת בהצלחה את המפגש
-        </Text>
-      </SafeAreaView>
-    );
-  }
-
-  // Early return if no patient data
-  if (!patient) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <DynamicBackground />
-        <View style={styles.errorContainer}>
-          <Text style={styles.header}>שגיאה</Text>
-          <Text style={styles.errorText}>לא נמצאו נתוני מטופל</Text>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>חזור למסך הקודם</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Welcome screen before session starts or while loading story
-  if (loading || !story) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#E0F2FE', justifyContent: 'center', alignItems: 'center' }}>
-        <DynamicBackground />
-        <LottieView
-          source={require('../assets/loader.json')}
-          autoPlay
-          loop
-          style={{ width: 200, height: 200 }}
-        />
-        <Text style={{ fontSize: 20, color: '#2563EB', fontWeight: '700', marginTop: 32, textAlign: 'center' }}>
-          יוצרים עבורך סיפור טיפולי אישי...
-        </Text>
-        <Text style={{ fontSize: 16, color: '#64748B', marginTop: 12, textAlign: 'center' }}>
-          נשום עמוק, זה עשוי לקחת מספר שניות
-        </Text>
-      </SafeAreaView>
-    );
-  }
 
   // Main session screen
   return (
@@ -713,6 +741,60 @@ export default function SessionScreen({ route, navigation }) {
             ]}>
               {story.story}
             </Text>
+
+            {/* --- Contextual Media Section --- */}
+            <View style={styles.mediaSection}>
+              {mediaLoading ? (
+                <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 12 }} />
+              ) : mediaError ? (
+                <Text style={{ color: 'red', marginVertical: 8 }}>{mediaError}</Text>
+              ) : (
+                <>
+                  {/* Image */}
+                  {media?.image ? (
+                    media.image.startsWith('http') || media.image.length > 3 ? (
+                      <Image source={{ uri: getImageUrl(media.image) }} style={styles.mediaImagePlaceholder} resizeMode="cover" />
+                    ) : (
+                      <Text style={{ color: 'orange', marginVertical: 8 }}>[תמונת מדיה לא תקינה: {String(media.image)}]</Text>
+                    )
+                  ) : (
+                    <View style={styles.mediaImagePlaceholder}>
+                      <Text style={styles.mediaLabel}>[אין תמונה רלוונטית לסיפור]</Text>
+                    </View>
+                  )}
+                  {/* Video */}
+                  {media?.video ? (
+                    media.video.length > 3 ? (
+                      <WebView
+                        source={{ uri: getYoutubeEmbedUrl(media.video) }}
+                        style={styles.mediaVideoPlaceholder}
+                        javaScriptEnabled
+                        domStorageEnabled
+                      />
+                    ) : (
+                      <Text style={{ color: 'orange', marginVertical: 8 }}>[וידאו מדיה לא תקין: {String(media.video)}]</Text>
+                    )
+                  ) : (
+                    <View style={styles.mediaVideoPlaceholder}>
+                      <Text style={styles.mediaLabel}>[אין וידאו לסיפור]</Text>
+      </View>
+                  )}
+                  {/* Audio */}
+                  {media?.sound ? (
+                    media.sound.length > 3 ? (
+                      <AudioPlayer url={getFreesoundUrl(media.sound)} />
+                    ) : (
+                      <Text style={{ color: 'orange', marginVertical: 8 }}>[צליל מדיה לא תקין: {String(media.sound)}]</Text>
+                    )
+                  ) : (
+                    <View style={styles.mediaAudioPlaceholder}>
+                      <Text style={styles.mediaLabel}>[אין צליל רקע/הרפיה]</Text>
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+            {/* --- End Media Section --- */}
           </View>
         )}
 
@@ -827,7 +909,7 @@ export default function SessionScreen({ route, navigation }) {
           <Text style={{ fontSize: 16, color: '#64748B', marginTop: 12, textAlign: 'center' }}>
             אנא המתן בסבלנות
           </Text>
-        </View>
+    </View>
       )}
 
       {/* Modals */}
@@ -1004,22 +1086,27 @@ const styles = StyleSheet.create({
   // Session screen styles
   sessionHeader: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 1,
+    elevation: 1,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   exitSessionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#FEF2F2',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1027,7 +1114,7 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
   },
   exitSessionButtonText: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#DC2626',
     fontWeight: 'bold',
   },
@@ -1035,19 +1122,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chapterTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1E293B',
   },
   patientName: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#64748B',
-    marginTop: 4,
+    marginTop: 1,
   },
   textSizeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#EBF4FF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1055,29 +1142,30 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   textSizeButtonText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '600',
     color: '#3B82F6',
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
+    paddingVertical: 3,
   },
   progressBar: {
     flex: 1,
-    height: 6,
+    height: 3,
     backgroundColor: '#E2E8F0',
-    borderRadius: 3,
+    borderRadius: 1.5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#3B82F6',
-    borderRadius: 3,
+    borderRadius: 1.5,
   },
   progressText: {
-    fontSize: 12,
+    fontSize: 9,
     color: '#64748B',
     fontWeight: '500',
   },
@@ -1085,16 +1173,20 @@ const styles = StyleSheet.create({
   // Story styles
   storyContainer: {
     backgroundColor: '#FFFFFF',
-    margin: 20,
-    borderRadius: 16,
-    padding: 24,
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+    padding: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   storyText: {
+    fontSize: 14,
+    lineHeight: 20,
     color: '#1E293B',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -1103,28 +1195,28 @@ const styles = StyleSheet.create({
   // Audio controls
   audioControls: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 16,
-    padding: 20,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+    padding: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   audioInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   audioStatus: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#64748B',
     fontWeight: '500',
   },
   playbackSpeed: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#64748B',
     fontWeight: '500',
   },
@@ -1132,12 +1224,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    gap: 10,
   },
   speedButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1145,25 +1237,25 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   speedButtonText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#64748B',
   },
   playButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
     backgroundColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   playButtonText: {
-    fontSize: 24,
+    fontSize: 18,
   },
 
   // Navigation controls
@@ -1171,33 +1263,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 20,
+    gap: 8,
   },
   prevButton: {
     backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   prevButtonText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '600',
     color: '#64748B',
   },
   sudButton: {
     backgroundColor: '#FEF3C7',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
   sudButtonText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '600',
     color: '#3B82F6',
   },
@@ -1212,10 +1304,10 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    minWidth: 120,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    minWidth: 90,
     alignItems: 'center',
   },
   nextButtonDisabled: {
@@ -1223,7 +1315,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   nextButtonText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -1237,28 +1329,35 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    width: width * 0.85,
-    maxHeight: '70%',
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.75,
+    maxHeight: '55%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   dropdownTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   dropdownItem: {
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   dropdownItemSelected: {
     backgroundColor: '#EBF4FF',
+    borderRadius: 5,
   },
   dropdownItemText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#1E293B',
   },
   dropdownItemTextSelected: {
@@ -1267,18 +1366,25 @@ const styles = StyleSheet.create({
   },
   textSizeContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    width: width * 0.7,
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.55,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   textSizeOption: {
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     alignItems: 'center',
   },
   textSizeOptionSelected: {
     backgroundColor: '#EBF4FF',
+    borderRadius: 5,
   },
   textSizeOptionText: {
     color: '#1E293B',
@@ -1291,55 +1397,60 @@ const styles = StyleSheet.create({
   // Exit modal
   exitModalContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: width * 0.85,
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.75,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   exitModalIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 36,
+    marginBottom: 10,
   },
   exitModalTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
   },
   exitModalMessage: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#64748B',
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   exitModalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
     width: '100%',
   },
   exitModalCancelButton: {
     flex: 1,
     backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: 8,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   exitModalCancelButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#64748B',
   },
   exitModalConfirmButton: {
     flex: 1,
     backgroundColor: '#DC2626',
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: 8,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   exitModalConfirmButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -1347,22 +1458,27 @@ const styles = StyleSheet.create({
   // Chapter navigation modal
   chapterNavContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: width * 0.8,
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.7,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   chapterNavTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
   },
   chapterNavSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#64748B',
-    marginBottom: 20,
+    marginBottom: 14,
     textAlign: 'center',
   },
   chapterNavOptions: {
@@ -1372,67 +1488,246 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   chapterNavOptionText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
     color: '#1E293B',
+    fontWeight: '600',
   },
   chapterNavOptionArrow: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
     color: '#3B82F6',
   },
   chapterNavEmpty: {
-    fontSize: 16,
-    color: '#94A3B8',
+    fontSize: 13,
+    color: '#64748B',
     textAlign: 'center',
-    fontStyle: 'italic',
+    marginTop: 6,
   },
 
-  // Add SUD required modal
+  // SUD required modal
   sudRequiredContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: width * 0.85,
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.75,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   sudRequiredIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 36,
+    marginBottom: 10,
   },
   sudRequiredTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
   },
   sudRequiredMessage: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#64748B',
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   sudRequiredButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
+    backgroundColor: '#22C55E',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   sudRequiredButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  // Reward modal
+  rewardModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.75,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  rewardCoinsText: {
+    color: '#1E40AF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  rewardTrophyText: {
+    color: '#FFD700',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  rewardTrophyDesc: {
+    color: '#64748B',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 3,
+  },
+  rewardCloseButton: {
+    marginTop: 18,
+    backgroundColor: '#1E40AF',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 20,
+  },
+  rewardCloseButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  // Badge modal
+  badgeModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.75,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  badgeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E40AF',
+    marginTop: 10,
+  },
+  badgeLabel: {
+    fontWeight: '700',
+    color: '#1E40AF',
+    fontSize: 16,
+    marginTop: 6,
+  },
+  badgeDesc: {
+    color: '#64748B',
+    fontSize: 13,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  badgeCloseButton: {
+    marginTop: 18,
+    backgroundColor: '#1E40AF',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 20,
+  },
+  badgeCloseButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  // Media section styles
+  mediaSection: {
+    marginTop: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  mediaImagePlaceholder: {
+    width: '100%',
+    height: 140,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  mediaVideoPlaceholder: {
+    width: '100%',
+    height: 140,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  mediaAudioPlaceholder: {
+    width: '100%',
+    height: 45,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaLabel: {
+    color: '#64748B',
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  // Audio Player Component Styles
+  audioPlayerContainer: {
+    width: '100%',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  audioPlayerButton: {
+    backgroundColor: '#3B82F6',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  audioPlayerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  audioPlayerSlider: {
+    flex: 1,
+    height: 25,
+    marginHorizontal: 6,
+  },
+  audioPlayerTime: {
+    fontSize: 11,
+    color: '#4A5568',
+    fontWeight: '500',
+  },
+  audioPlayerStatus: {
+    fontSize: 9,
+    color: '#718096',
+    marginTop: 3,
   },
 });
 
@@ -1474,4 +1769,47 @@ function getSkinColor(key) {
     case 'dark': return '#5C4033';
     default: return '#F9D7B5';
   }
+}
+
+// Helper functions for media URLs
+function getImageUrl(image) {
+  if (image.startsWith('http')) return image;
+  // Use only the first 3 words for Unsplash search
+  const shortQuery = image.split(' ').slice(0, 3).join(' ');
+  return `https://source.unsplash.com/600x400/?${encodeURIComponent(shortQuery)}`;
+}
+
+function getYoutubeEmbedUrl(video) {
+  if (video.includes('youtube.com') || video.includes('youtu.be')) {
+    const match = video.match(/(?:v=|be\/)([\w-]{11})/);
+    const id = match ? match[1] : null;
+    return id ? `https://www.youtube.com/embed/${id}` : video;
+  }
+  // Use only the first 3 words for YouTube search
+  const shortQuery = video.split(' ').slice(0, 3).join(' ');
+  return `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(shortQuery)}`;
+}
+
+function getFreesoundUrl(sound) {
+  if (sound.startsWith('http')) return sound;
+  // Use only the first 3 words for Freesound search
+  const shortQuery = sound.split(' ').slice(0, 3).join(' ');
+  return `https://freesound.org/search/?q=${encodeURIComponent(shortQuery)}`;
+}
+
+// Improved audio player: only play direct mp3, otherwise show message
+function AudioPlayer({ url }) {
+  const isPlayable = url.endsWith('.mp3');
+  if (!isPlayable) {
+    return (
+      <View style={{ width: '100%', height: 48, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: '#64748B', fontSize: 15 }}>
+          <Text style={{ fontWeight: 'bold' }}>🔇 </Text>
+          אין צליל ישיר זמין לסיפור זה
+        </Text>
+      </View>
+    );
+  }
+  // If playable, show nothing (auto-play will trigger)
+  return null;
 } 

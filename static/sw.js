@@ -28,7 +28,7 @@ const API_ENDPOINTS = [
     '/api/notifications'
 ];
 
-// Install event - cache static files
+// Install event - cache static filesl
 self.addEventListener('install', event => {
     console.log('[SW] Installing Service Worker');
     

@@ -139,7 +139,7 @@ export default function FeedbackScreen({ route, navigation }) {
           setUnlockedBadge(BADGE_DEFS.find(b => b.key === 'first_feedback'));
           setShowBadgeModal(true);
         }
-        setSubmitted(true);
+    setSubmitted(true);
         // Navigate back after 3 seconds
         setTimeout(() => {
           navigation.reset({

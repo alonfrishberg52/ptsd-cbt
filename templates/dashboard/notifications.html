@@ -1,0 +1,550 @@
+{% extends 'dashboard/base_enhanced.html' %}
+
+{% block title %}התראות - NarraTIVE{% endblock %}
+{% block page_title %}מרכז ההתראות{% endblock %}
+{% block page_description %}ניהול התראות והודעות במערכת{% endblock %}
+
+{% block content %}
+<!-- Enhanced Notifications Center -->
+<div class="notifications-container" style="max-width: 1000px; margin: 0 auto;">
+
+    <!-- Notification Stats -->
+    <div class="notification-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-lg); margin-bottom: var(--space-2xl);">
+        <div class="stat-card" style="background: linear-gradient(135deg, var(--warning-color) 0%, #dc2626 100%); color: white; padding: var(--space-xl); border-radius: var(--radius-2xl); box-shadow: var(--shadow-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 2rem; font-weight: 800; margin-bottom: var(--space-xs);" id="urgentCount">3</div>
+                    <div style="opacity: 0.9;">התראות דחופות</div>
+                </div>
+                <i class="bi bi-exclamation-triangle" style="font-size: 2rem; opacity: 0.8;"></i>
+            </div>
+        </div>
+
+        <div class="stat-card" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%); color: white; padding: var(--space-xl); border-radius: var(--radius-2xl); box-shadow: var(--shadow-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 2rem; font-weight: 800; margin-bottom: var(--space-xs);" id="unreadCount">12</div>
+                    <div style="opacity: 0.9;">לא נקראו</div>
+                </div>
+                <i class="bi bi-bell" style="font-size: 2rem; opacity: 0.8;"></i>
+            </div>
+        </div>
+
+        <div class="stat-card" style="background: linear-gradient(135deg, var(--success-color) 0%, #16a34a 100%); color: white; padding: var(--space-xl); border-radius: var(--radius-2xl); box-shadow: var(--shadow-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 2rem; font-weight: 800; margin-bottom: var(--space-xs);" id="todayCount">8</div>
+                    <div style="opacity: 0.9;">הודעות היום</div>
+                </div>
+                <i class="bi bi-calendar-check" style="font-size: 2rem; opacity: 0.8;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Search Bar -->
+    <div class="notification-controls" style="background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: var(--radius-2xl); padding: var(--space-lg); margin-bottom: var(--space-xl); display: flex; gap: var(--space-md); align-items: center; flex-wrap: wrap;">
+        
+        <!-- Search -->
+        <div class="search-container" style="flex: 1; min-width: 300px; position: relative;">
+            <input type="search" id="notificationSearch" placeholder="חיפוש התראות..." 
+                   style="width: 100%; padding: var(--space-md) var(--space-lg); padding-right: 3rem; border: 2px solid rgba(0, 0, 0, 0.1); border-radius: var(--radius-lg); background: var(--bg-primary);">
+            <i class="bi bi-search" style="position: absolute; right: var(--space-md); top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="filter-buttons" style="display: flex; gap: var(--space-sm);">
+            <button class="filter-btn active" data-filter="all" style="padding: var(--space-sm) var(--space-md); border: none; border-radius: var(--radius-md); background: var(--primary-color); color: white; cursor: pointer; transition: all var(--transition-fast);">
+                הכל
+            </button>
+            <button class="filter-btn" data-filter="urgent" style="padding: var(--space-sm) var(--space-md); border: 1px solid var(--warning-color); border-radius: var(--radius-md); background: transparent; color: var(--warning-color); cursor: pointer; transition: all var(--transition-fast);">
+                דחוף
+            </button>
+            <button class="filter-btn" data-filter="unread" style="padding: var(--space-sm) var(--space-md); border: 1px solid var(--primary-color); border-radius: var(--radius-md); background: transparent; color: var(--primary-color); cursor: pointer; transition: all var(--transition-fast);">
+                לא נקרא
+            </button>
+            <button class="filter-btn" data-filter="system" style="padding: var(--space-sm) var(--space-md); border: 1px solid var(--text-muted); border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; transition: all var(--transition-fast);">
+                מערכת
+            </button>
+        </div>
+
+        <!-- Actions -->
+        <div class="action-buttons" style="display: flex; gap: var(--space-sm);">
+            <button class="btn btn-ghost btn-sm" onclick="markAllAsRead()" data-tooltip="סמן הכל כנקרא">
+                <i class="bi bi-check2-all"></i>
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteSelected()" data-tooltip="מחק נבחרים">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Notifications List -->
+    <div class="notifications-list" id="notificationsList">
+        <!-- Sample notifications will be loaded here -->
+    </div>
+
+    <!-- Floating Action Button for New Notifications -->
+    <button class="fab-notification" onclick="createNotification()" 
+            style="position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; border: none; background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%); color: white; box-shadow: var(--shadow-xl); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; transition: all var(--transition-fast); z-index: 1000;">
+        <i class="bi bi-bell-fill"></i>
+    </button>
+</div>
+
+<!-- Notification Toast Container -->
+<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: var(--space-sm);"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotifications();
+    initializeFilters();
+    startRealTimeNotifications();
+});
+
+function loadNotifications() {
+    const notifications = [
+        {
+            id: 1,
+            type: 'urgent',
+            icon: 'bi-exclamation-triangle',
+            title: 'SUD גבוה - מטופל דורש טיפול מיידי',
+            message: 'דני כהן דיווח על SUD של 9/10 במפגש האחרון. מומלץ טיפול מיידי.',
+            time: 'לפני 5 דקות',
+            unread: true,
+            priority: 'high',
+            actions: [
+                { label: 'צפה במטופל', action: 'viewPatient', style: 'primary' },
+                { label: 'קבע מפגש', action: 'scheduleSession', style: 'warning' }
+            ]
+        },
+        {
+            id: 2,
+            type: 'patient',
+            icon: 'bi-person-check',
+            title: 'השלמת תרגיל בהצלחה',
+            message: 'שרה לוי השלימה תרגיל חשיפה דרגה 3 עם ציון 8/10.',
+            time: 'לפני 15 דקות',
+            unread: true,
+            priority: 'normal',
+            actions: [
+                { label: 'צפה בתוצאות', action: 'viewResults', style: 'success' }
+            ]
+        },
+        {
+            id: 3,
+            type: 'system',
+            icon: 'bi-gear',
+            title: 'עדכון מערכת זמין',
+            message: 'גרסה 2.1.4 זמינה להורדה עם שיפורים בביצועים ותיקונים.',
+            time: 'לפני שעה',
+            unread: false,
+            priority: 'low',
+            actions: [
+                { label: 'הורד עדכון', action: 'downloadUpdate', style: 'outline' }
+            ]
+        },
+        {
+            id: 4,
+            type: 'reminder',
+            icon: 'bi-calendar-event',
+            title: 'תזכורת מפגש',
+            message: 'מפגש עם אבי מזרחי מתוכנן לעוד 30 דקות.',
+            time: 'לפני שעתיים',
+            unread: false,
+            priority: 'normal',
+            actions: [
+                { label: 'צפה בפרטים', action: 'viewSession', style: 'primary' },
+                { label: 'דחה מפגש', action: 'postponeSession', style: 'outline' }
+            ]
+        },
+        {
+            id: 5,
+            type: 'urgent',
+            icon: 'bi-shield-exclamation',
+            title: 'התראת אבטחה',
+            message: 'נסיון כניסה חשוד זוהה מכתובת IP לא מוכרת.',
+            time: 'לפני 3 שעות',
+            unread: true,
+            priority: 'high',
+            actions: [
+                { label: 'צפה בפרטים', action: 'viewSecurity', style: 'warning' },
+                { label: 'חסום IP', action: 'blockIP', style: 'danger' }
+            ]
+        },
+        {
+            id: 6,
+            type: 'success',
+            icon: 'bi-trophy',
+            title: 'יעד טיפולי הושג',
+            message: 'מיכל דוד השיגה את יעד הטיפול - SUD ממוצע מתחת ל-4.',
+            time: 'אתמול',
+            unread: false,
+            priority: 'normal',
+            actions: [
+                { label: 'צפה בהתקדמות', action: 'viewProgress', style: 'success' }
+            ]
+        }
+    ];
+
+    displayNotifications(notifications);
+    updateStats(notifications);
+}
+
+function displayNotifications(notifications) {
+    const container = document.getElementById('notificationsList');
+    
+    container.innerHTML = notifications.map(notification => `
+        <div class="notification-item ${notification.unread ? 'unread' : ''}" 
+             data-id="${notification.id}" 
+             data-type="${notification.type}" 
+             data-priority="${notification.priority}"
+             style="background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid ${notification.unread ? 'var(--primary-color)' : 'rgba(255, 255, 255, 0.2)'}; border-radius: var(--radius-2xl); padding: var(--space-xl); margin-bottom: var(--space-lg); transition: all var(--transition-fast); cursor: pointer; position: relative;">
+            
+            ${notification.unread ? '<div style="position: absolute; top: var(--space-md); right: var(--space-md); width: 8px; height: 8px; background: var(--primary-color); border-radius: 50%;"></div>' : ''}
+            
+            <div style="display: flex; align-items: start; gap: var(--space-lg);">
+                <div class="notification-icon" style="width: 50px; height: 50px; border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; ${getIconStyle(notification.type)}">
+                    <i class="bi ${notification.icon}"></i>
+                </div>
+                
+                <div class="notification-content" style="flex: 1;">
+                    <div class="notification-header" style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-sm);">
+                        <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">${notification.title}</h4>
+                        <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                            ${getPriorityBadge(notification.priority)}
+                            <span style="font-size: 0.85rem; color: var(--text-muted);">${notification.time}</span>
+                        </div>
+                    </div>
+                    
+                    <p style="margin: 0 0 var(--space-md); color: var(--text-secondary); line-height: 1.5;">${notification.message}</p>
+                    
+                    <div class="notification-actions" style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+                        ${notification.actions.map(action => `
+                            <button class="btn btn-${action.style} btn-sm" onclick="handleNotificationAction('${action.action}', ${notification.id})" style="font-size: 0.85rem;">
+                                ${action.label}
+                            </button>
+                        `).join('')}
+                        
+                        <button class="btn btn-ghost btn-sm" onclick="toggleNotificationRead(${notification.id})" style="margin-right: auto;">
+                            <i class="bi ${notification.unread ? 'bi-check' : 'bi-arrow-clockwise'}"></i>
+                            ${notification.unread ? 'סמן כנקרא' : 'סמן כלא נקרא'}
+                        </button>
+                        
+                        <button class="btn btn-ghost btn-sm" onclick="deleteNotification(${notification.id})" style="color: var(--warning-color);">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    // Add hover effects
+    document.querySelectorAll('.notification-item').forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = 'var(--shadow-xl)';
+        });
+        
+        item.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '';
+        });
+    });
+}
+
+function getIconStyle(type) {
+    const styles = {
+        urgent: 'background: var(--warning-color); color: white;',
+        patient: 'background: var(--success-color); color: white;',
+        system: 'background: var(--text-muted); color: white;',
+        reminder: 'background: var(--primary-color); color: white;',
+        success: 'background: var(--success-color); color: white;'
+    };
+    return styles[type] || 'background: var(--text-muted); color: white;';
+}
+
+function getPriorityBadge(priority) {
+    const badges = {
+        high: '<span class="badge" style="background: var(--warning-color); color: white; font-size: 0.7rem;">דחוף</span>',
+        normal: '<span class="badge" style="background: var(--primary-color); color: white; font-size: 0.7rem;">רגיל</span>',
+        low: '<span class="badge" style="background: var(--text-muted); color: white; font-size: 0.7rem;">נמוך</span>'
+    };
+    return badges[priority] || '';
+}
+
+function updateStats(notifications) {
+    const urgent = notifications.filter(n => n.priority === 'high' && n.unread).length;
+    const unread = notifications.filter(n => n.unread).length;
+    const today = notifications.filter(n => n.time.includes('דקות') || n.time.includes('שעה')).length;
+    
+    document.getElementById('urgentCount').textContent = urgent;
+    document.getElementById('unreadCount').textContent = unread;
+    document.getElementById('todayCount').textContent = today;
+}
+
+function initializeFilters() {
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const searchInput = document.getElementById('notificationSearch');
+    
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Update active state
+            filterButtons.forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'transparent';
+                b.style.color = b.dataset.filter === 'urgent' ? 'var(--warning-color)' : 'var(--primary-color)';
+            });
+            
+            this.classList.add('active');
+            this.style.background = this.dataset.filter === 'urgent' ? 'var(--warning-color)' : 'var(--primary-color)';
+            this.style.color = 'white';
+            
+            filterNotifications(this.dataset.filter);
+        });
+    });
+    
+    searchInput.addEventListener('input', function() {
+        searchNotifications(this.value);
+    });
+}
+
+function filterNotifications(filter) {
+    const notifications = document.querySelectorAll('.notification-item');
+    
+    notifications.forEach(notification => {
+        const type = notification.dataset.type;
+        const priority = notification.dataset.priority;
+        const isUnread = notification.classList.contains('unread');
+        
+        let show = true;
+        
+        switch(filter) {
+            case 'urgent':
+                show = priority === 'high';
+                break;
+            case 'unread':
+                show = isUnread;
+                break;
+            case 'system':
+                show = type === 'system';
+                break;
+            case 'all':
+            default:
+                show = true;
+        }
+        
+        notification.style.display = show ? 'block' : 'none';
+    });
+}
+
+function searchNotifications(query) {
+    const notifications = document.querySelectorAll('.notification-item');
+    const searchTerm = query.toLowerCase();
+    
+    notifications.forEach(notification => {
+        const title = notification.querySelector('h4').textContent.toLowerCase();
+        const message = notification.querySelector('p').textContent.toLowerCase();
+        const isMatch = title.includes(searchTerm) || message.includes(searchTerm);
+        
+        notification.style.display = isMatch ? 'block' : 'none';
+    });
+}
+
+function handleNotificationAction(action, notificationId) {
+    console.log(`Action: ${action}, Notification: ${notificationId}`);
+    
+    // Show toast notification
+    showToast(`פעולה "${action}" בוצעה בהצלחה`, 'success');
+    
+    // Here you would typically make an API call or navigate to the appropriate page
+    switch(action) {
+        case 'viewPatient':
+            // Navigate to patient page
+            break;
+        case 'scheduleSession':
+            // Open scheduling modal
+            break;
+        case 'viewResults':
+            // Navigate to results page
+            break;
+        // Add more cases as needed
+    }
+}
+
+function toggleNotificationRead(notificationId) {
+    const notification = document.querySelector(`[data-id="${notificationId}"]`);
+    const isUnread = notification.classList.contains('unread');
+    
+    if (isUnread) {
+        notification.classList.remove('unread');
+        notification.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        notification.querySelector('.notification-content').style.opacity = '0.8';
+        
+        // Remove unread dot
+        const dot = notification.querySelector('div[style*="position: absolute"]');
+        if (dot) dot.remove();
+        
+        showToast('ההתראה סומנה כנקראה', 'info');
+    } else {
+        notification.classList.add('unread');
+        notification.style.borderColor = 'var(--primary-color)';
+        notification.querySelector('.notification-content').style.opacity = '1';
+        
+        showToast('ההתראה סומנה כלא נקראה', 'info');
+    }
+    
+    // Update stats
+    setTimeout(() => {
+        const allNotifications = Array.from(document.querySelectorAll('.notification-item')).map(el => ({
+            unread: el.classList.contains('unread'),
+            priority: el.dataset.priority,
+            time: el.querySelector('span[style*="color: var(--text-muted)"]').textContent
+        }));
+        updateStats(allNotifications);
+    }, 100);
+}
+
+function deleteNotification(notificationId) {
+    if (confirm('האם אתה בטוח שברצונך למחוק התראה זו?')) {
+        const notification = document.querySelector(`[data-id="${notificationId}"]`);
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        
+        setTimeout(() => {
+            notification.remove();
+            showToast('ההתראה נמחקה', 'success');
+        }, 300);
+    }
+}
+
+function markAllAsRead() {
+    const unreadNotifications = document.querySelectorAll('.notification-item.unread');
+    
+    unreadNotifications.forEach(notification => {
+        notification.classList.remove('unread');
+        notification.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        
+        const dot = notification.querySelector('div[style*="position: absolute"]');
+        if (dot) dot.remove();
+    });
+    
+    document.getElementById('unreadCount').textContent = '0';
+    showToast(`${unreadNotifications.length} התראות סומנו כנקראות`, 'success');
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background: ${type === 'success' ? 'var(--success-color)' : type === 'warning' ? 'var(--warning-color)' : 'var(--primary-color)'};
+        color: white;
+        padding: var(--space-md) var(--space-lg);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        margin-bottom: var(--space-sm);
+        animation: slideInRight 0.3s ease-out;
+        min-width: 300px;
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+    `;
+    
+    toast.innerHTML = `
+        <i class="bi ${type === 'success' ? 'bi-check-circle' : type === 'warning' ? 'bi-exclamation-triangle' : 'bi-info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    
+    document.getElementById('toastContainer').appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOutRight 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function startRealTimeNotifications() {
+    // Simulate new notifications
+    setInterval(() => {
+        if (Math.random() > 0.8) { // 20% chance every 30 seconds
+            const newNotification = {
+                type: 'patient',
+                title: 'התראה חדשה',
+                message: 'התקבלה התראה חדשה במערכת',
+                time: 'עכשיו'
+            };
+            
+            showToast('התראה חדשה התקבלה', 'info');
+            
+            // Update notification count
+            const currentCount = parseInt(document.getElementById('unreadCount').textContent);
+            document.getElementById('unreadCount').textContent = currentCount + 1;
+            
+            // Flash the FAB
+            const fab = document.querySelector('.fab-notification');
+            fab.style.animation = 'pulse 1s ease-in-out 3';
+        }
+    }, 30000);
+}
+
+// Enhanced styles
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes slideOutRight {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+    
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(-100%); opacity: 0; }
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+    
+    .fab-notification:hover {
+        transform: scale(1.1);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    
+    .filter-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    
+    .notification-item.unread {
+        box-shadow: 0 0 0 2px var(--primary-color), var(--shadow-lg);
+    }
+    
+    @media (max-width: 768px) {
+        .notification-controls {
+            flex-direction: column !important;
+            align-items: stretch !important;
+        }
+        
+        .filter-buttons, .action-buttons {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .notification-stats {
+            grid-template-columns: 1fr !important;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

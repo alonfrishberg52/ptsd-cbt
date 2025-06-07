@@ -420,7 +420,7 @@ export default function DashboardScreen({ navigation }) {
           </View>
           
           <View style={styles.bottomSpacer} />
-        </ScrollView>
+    </ScrollView>
       </Animated.View>
     </SafeAreaView>
   );

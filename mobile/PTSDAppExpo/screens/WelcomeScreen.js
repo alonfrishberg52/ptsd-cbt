@@ -26,6 +26,17 @@ import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
+function ReturnButton({ navigation }) {
+  return (
+    <TouchableOpacity
+      style={{ position: 'absolute', top: 36, left: 16, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 16, padding: 6 }}
+      onPress={() => navigation.goBack()}
+    >
+      <Text style={{ fontSize: 14, color: '#1E40AF', fontWeight: '600' }}>← חזור</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function WelcomeScreen({ navigation }) {
   // User state
   const [userName, setUserName] = useState('');
@@ -218,8 +229,8 @@ export default function WelcomeScreen({ navigation }) {
     }
     // Start story generation in the background
     session.startStoryGeneration(currentUser, sudValue);
-    // Immediately go to PreSession
-    navigation.navigate('PreSession');
+    // Immediately go to PreSession, pass patient as param
+    navigation.navigate('PreSession', { patient: currentUser });
   };
 
   const handleProceedToAnxietySelection = () => {
@@ -433,367 +444,272 @@ export default function WelcomeScreen({ navigation }) {
     );
   }
 
-  // Logged in view
-  if (isLoggedIn && currentUser) {
+  // Main welcome screen content
     return (
       <SafeAreaView style={styles.container}>
+      {navigation.canGoBack && navigation.canGoBack() && <ReturnButton navigation={navigation} />}
         <DynamicBackground />
-        <Animated.View 
-          style={[
-            styles.content,
-            {
+      <Animated.ScrollView 
+        contentContainerStyle={styles.content}
+        style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
-            }
-          ]}
+        }}
         >
-          {/* Header with user info */}
-          <View style={styles.userHeader}>
+        {/* Hero Section: Logo, Tagline, Subtitle */}
+        <View style={styles.heroSection}>
+          <Animated.View style={[
+            styles.logoContainer,
+            { transform: [{ scale: logoScale }, { rotate: logoRotateAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: ['0deg', '360deg']
+            }) }] }
+          ]}>
+            <Image 
+              source={require('../assets/logo.png')}
+              style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 12 }}
+            />
+            <Text style={styles.logoMain}>NarraTIVE</Text>
+            <View style={styles.logoAccent} />
+          </Animated.View>
+          <Text style={styles.tagline}>
+            בואו נתמודד יחד. בבטחה.
+          </Text>
+          <Text style={styles.subtitle}>
+            האפליקציה שמלווה אותך בדרך להתמודדות עם פוסט טראומה,{'\n'}
+            עם סיפורים מותאמים אישית ותרגילים טיפוליים.
+          </Text>
+        </View>
+
+        {/* Login/Welcome Section */}
+        {!isLoggedIn ? (
+          <KeyboardAvoidingView 
+            style={styles.keyboardContainer}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+          >
+            <View style={styles.welcomeSection}>
+              <Text style={styles.welcomeTitle}>ברוכים הבאים ל-NarraTIVE</Text>
+              <Text style={styles.welcomeSubtitle}>
+                נא הזן את שמך המלא כדי להתחבר:
+              </Text>
+            </View>
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>שם מלא</Text>
+              <TextInput
+                style={styles.nameInput}
+                placeholder="הזן את שמך" placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                value={nameInput}
+                onChangeText={setNameInput}
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleNameSubmit}
+                editable={!loading}
+              />
+            </View>
             <TouchableOpacity 
-              style={styles.logoutButton}
-              onPress={handleLogout}
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleNameSubmit}
+              disabled={loading}
             >
-              <Text style={styles.logoutButtonText}>יציאה</Text>
+              {loading ? (
+                <ActivityIndicator color="#1E40AF" />
+              ) : (
+                <Text style={styles.submitButtonText}>התחבר</Text>
+              )}
             </TouchableOpacity>
             
-            <View style={styles.userInfo}>
-              <Text style={styles.welcomeBackText}>ברוך שובך,</Text>
-              <Text style={styles.userNameText}>{userName}</Text>
+            <View style={styles.featuresSection}>
+              <Text style={styles.featuresTitle}>למה NarraTIVE?</Text>
+              <View style={styles.featuresList}>
+                <View style={styles.featureItem}>
+                  <Text style={[styles.featureIcon, { color: '#F59E0B' }]}>✍️</Text>
+                  <Text style={styles.featureText}>סיפורים מותאמים אישית</Text>
             </View>
+                <View style={styles.featureItem}>
+                  <Text style={[styles.featureIcon, { color: '#10B981' }]}>🧘</Text>
+                  <Text style={styles.featureText}>תרגילים טיפוליים</Text>
           </View>
-
-          {/* Coin & Trophy Bar */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, justifyContent: 'center', gap: 28 }}>
-            {/* Coins */}
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <LottieView source={require('../assets/coins.json')} autoPlay loop style={{ width: 36, height: 36 }} />
-              <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 18, marginLeft: 6 }}>{coins}</Text>
+                <View style={styles.featureItem}>
+                  <Text style={[styles.featureIcon, { color: '#6366F1' }]}>📊</Text>
+                  <Text style={styles.featureText}>מעקב התקדמות</Text>
             </View>
-            {/* Trophies */}
-            <TouchableOpacity onPress={() => setShowTrophyModal(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <LottieView source={require('../assets/trohpy.json')} autoPlay loop style={{ width: 36, height: 36 }} />
-              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18, marginLeft: 6 }}>{trophies.length}</Text>
+                <View style={styles.featureItem}>
+                  <Text style={[styles.featureIcon, { color: '#EC4899' }]}>🫂</Text>
+                  <Text style={styles.featureText}>תמיכה ובטחון</Text>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        ) : (
+          <View>
+            <View style={styles.userHeader}>
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Text style={styles.logoutButtonText}>התנתק</Text>
             </TouchableOpacity>
+              <View style={styles.userInfo}>
+                <Text style={styles.welcomeBackText}>שלום לך,</Text>
+                <Text style={styles.userNameText}>{userName}!</Text>
+              </View>
           </View>
 
           {/* Avatar Preview */}
-          <TouchableOpacity style={{ alignSelf: 'center', marginTop: 18, marginBottom: 8 }} onPress={() => nav.navigate('AvatarCustomization')}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
             <View style={{ alignItems: 'center' }}>
               {/* Face (skin) */}
-              <View style={{ width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 2, backgroundColor: '#fff', borderWidth: 2, borderColor: '#3B82F6' }}>
-                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: getSkinColor(avatar.skin), alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                <View style={{ width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 4, backgroundColor: '#fff', borderWidth: 3, borderColor: '#3B82F6' }}>
+                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: getSkinColor(avatar?.skin), alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                   {/* Eyes */}
                   <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, marginHorizontal: 3, backgroundColor: getEyeColor(avatar.eyes), borderWidth: 1, borderColor: '#222' }} />
-                    <View style={{ width: 8, height: 8, borderRadius: 4, marginHorizontal: 3, backgroundColor: getEyeColor(avatar.eyes), borderWidth: 1, borderColor: '#222' }} />
+                      <View style={{ width: 8, height: 8, borderRadius: 4, marginHorizontal: 3, backgroundColor: getEyeColor(avatar?.eyes), borderWidth: 1, borderColor: '#222' }} />
+                      <View style={{ width: 8, height: 8, borderRadius: 4, marginHorizontal: 3, backgroundColor: getEyeColor(avatar?.eyes), borderWidth: 1, borderColor: '#222' }} />
                   </View>
                   {/* Hair */}
-                  <View style={{ position: 'absolute', top: 0, left: 8, right: 8, height: 18, borderTopLeftRadius: 10, borderTopRightRadius: 10, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: getHairColor(avatar.hair), zIndex: 2 }} />
+                    <View style={{ position: 'absolute', top: 0, left: 8, right: 8, height: 16, borderTopLeftRadius: 10, borderTopRightRadius: 10, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: getHairColor(avatar?.hair), zIndex: 2 }} />
                 </View>
               </View>
               {/* Shirt */}
-              <View style={{ width: 36, height: 18, borderRadius: 9, backgroundColor: getShirtColor(avatar.shirt), marginTop: -4 }} />
-              <Text style={{ color: '#64748B', fontSize: 13, marginTop: 2 }}>האווטאר שלי</Text>
+                <View style={{ width: 36, height: 16, borderRadius: 8, backgroundColor: getShirtColor(avatar?.shirt), marginTop: -6 }} />
             </View>
-          </TouchableOpacity>
+            </View>
 
-          {/* Logo with therapeutic animation */}
-          <Animated.View 
-            style={[
-              styles.logoContainer,
-              { 
-                transform: [
-                  { scale: logoScale },
-                  { rotate: logoRotateAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '5deg']
-                  })}
-                ]
-              }
-            ]}
-          >
-            <View style={styles.logoCircleShadow}>
-              <View style={styles.logoCircle}>
-                <Image 
-                  source={require('../assets/logo.png')} 
-                  style={styles.headerLogo}
-                  resizeMode="contain"
-                />
+            <View style={styles.quickStats}>
+              <Text style={styles.quickStatsTitle}>התקדמות שלך:</Text>
+              <Text style={styles.quickStatsSubtitle}>
+                {`הרווחת ${coins} מטבעות ופתחת ${trophies.length} תגים`}
+              </Text>
+              <TouchableOpacity 
+                style={{marginTop: 15, padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10}}
+                onPress={() => setShowTrophyModal(true)}
+              >
+                <Text style={{color: '#fff', fontSize: 14, fontWeight: '600'}}>הצג את התגים שלי</Text>
+              </TouchableOpacity>
               </View>
-            </View>
-            <Text style={styles.appName}>NarraTIVE</Text>
-            <View style={styles.accentLine} />
-          </Animated.View>
 
-          {/* Quick stats with breathing animation */}
-          <Animated.View 
-            style={[
-              styles.quickStats,
-              {
-                transform: [{
-                  scale: logoRotateAnim.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [1, 1.02, 1]
-                  })
-                }]
-              }
-            ]}
-          >
-            <Text style={styles.quickStatsTitle}>המפגש שלך מחכה</Text>
-            <Text style={styles.quickStatsSubtitle}>המשך במסע הטיפולי שלך</Text>
-          </Animated.View>
-
-          {/* Continue button */}
+            {/* Buttons for actions */}
           <TouchableOpacity 
             style={styles.continueButton}
             onPress={handleContinueToPreSession}
           >
-            <Text style={styles.continueButtonText}>התחל מפגש טיפולי</Text>
+              <Text style={styles.continueButtonText}>התחל מפגש חדש</Text>
             <Text style={styles.continueButtonArrow}>→</Text>
           </TouchableOpacity>
 
-          {/* Session info actions */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
             <TouchableOpacity
-              style={[
-                styles.quickActionButton,
-                {
-                  flex: 1,
-                  marginRight: 10,
-                  paddingVertical: 10,
-                  paddingHorizontal: 0,
-                  minHeight: 64,
-                  borderRadius: 18,
-                  backgroundColor: 'rgba(255,255,255,0.13)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(59,130,246,0.13)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.10,
-                  shadowRadius: 6,
-                  elevation: 2,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }
-              ]}
-              onPress={() => Alert.alert('היסטוריית מפגשים', 'כאן תוצג היסטוריית המפגשים שלך (דמה).')}
+              style={[styles.continueButton, {backgroundColor: '#60A5FA', shadowColor: '#60A5FA'}]}
+              onPress={() => nav.navigate('Dashboard', {patient: currentUser})}
             >
-              <Text style={[styles.quickActionIcon, { fontSize: 22, marginBottom: 2 }]}>📅</Text>
-              <Text style={[styles.quickActionText, { fontSize: 13 }]}>היסטוריית מפגשים</Text>
+              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>לוח מחוונים</Text>
+              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.quickActionButton,
-                {
-                  flex: 1,
-                  marginLeft: 10,
-                  paddingVertical: 10,
-                  paddingHorizontal: 0,
-                  minHeight: 64,
-                  borderRadius: 18,
-                  backgroundColor: 'rgba(255,255,255,0.13)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(59,130,246,0.13)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.10,
-                  shadowRadius: 6,
-                  elevation: 2,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }
-              ]}
-              onPress={() => Alert.alert('המפגש הבא', 'המפגש הבא שלך עם המטפל: 12.06.2024, 14:00 (דמה)')}
-            >
-              <Text style={[styles.quickActionIcon, { fontSize: 22, marginBottom: 2 }]}>👨‍⚕️</Text>
-              <Text style={[styles.quickActionText, { fontSize: 13 }]}>המפגש הבא עם המטפל</Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* Encouragement Wall Button */}
+            <TouchableOpacity
+              style={[styles.continueButton, {backgroundColor: '#10B981', shadowColor: '#10B981'}]}
+              onPress={() => nav.navigate('EncouragementWall', {patient: currentUser})}
+            >
+              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>קיר עידוד</Text>
+              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
+            </TouchableOpacity>
+
           <TouchableOpacity
-            style={{
-              backgroundColor: '#3B82F6',
-              borderRadius: 16,
-              paddingVertical: 18,
-              paddingHorizontal: 24,
-              marginTop: 24,
-              alignItems: 'center',
-              shadowColor: '#3B82F6',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.18,
-              shadowRadius: 8,
-              elevation: 6,
-            }}
-            onPress={() => nav.navigate('EncouragementWall')}
+              style={[styles.continueButton, {backgroundColor: '#EF4444', shadowColor: '#EF4444'}]}
+              onPress={() => nav.navigate('AuditLog', {patient: currentUser})}
           >
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>קיר עידוד אנונימי</Text>
-            <Text style={{ color: '#DBEAFE', fontSize: 13, marginTop: 2 }}>שתף/י מסר עידוד או תמיכה</Text>
+              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>יומן פעילות</Text>
+              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
           </TouchableOpacity>
-        </Animated.View>
 
-        {/* Trophy Modal */}
+            <TouchableOpacity
+              style={[styles.continueButton, {backgroundColor: '#8B5CF6', shadowColor: '#8B5CF6'}]}
+              onPress={() => nav.navigate('PatientProfile', {patient: currentUser})}
+            >
+              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>פרופיל מטופל</Text>
+              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.continueButton, {backgroundColor: '#F97316', shadowColor: '#F97316'}]}
+              onPress={() => nav.navigate('Research', {patient: currentUser})}
+            >
+              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>מחקר</Text>
+              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.continueButton, {backgroundColor: '#6B7280', shadowColor: '#6B7280'}]}
+              onPress={handleLogout}
+            >
+              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>התנתק</Text>
+              <Text style={[
+                styles.continueButtonArrow,
+                { color: '#FFFFFF' },
+              ]}>→ </Text>
+            </TouchableOpacity>
+
         <Modal visible={showTrophyModal} transparent animationType="fade">
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, width: 320, alignItems: 'center' }}>
-              <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E40AF', marginBottom: 16 }}>הישגים</Text>
-              {TROPHY_DEFS.map((trophy, idx) => {
-                const unlocked = trophies.includes(trophy.key);
-                return (
-                  <View key={trophy.key} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
-                    {unlocked ? (
-                      <LottieView source={require('../assets/trohpy.json')} autoPlay loop={false} style={{ width: 40, height: 40, marginRight: 10 }} />
-                    ) : (
-                      <View style={{ width: 40, height: 40, marginRight: 10, opacity: 0.3 }}>
-                        <LottieView source={require('../assets/trohpy.json')} autoPlay={false} loop={false} style={{ width: 40, height: 40 }} />
+              <View style={styles.modalOverlay}>
+                <View style={styles.trophyModalContainer}>
+                  <Text style={styles.trophyModalTitle}>התגים שפתחת</Text>
+                  {trophies.length > 0 ? (
+                    <ScrollView style={styles.trophyList}>
+                      {trophies.map(trophyKey => {
+                        const trophy = TROPHY_DEFS.find(t => t.key === trophyKey);
+                        return trophy ? (
+                          <View key={trophy.key} style={styles.trophyItem}>
+                            <LottieView source={require('../assets/trohpy.json')} autoPlay loop={false} style={{ width: 60, height: 60 }} />
+                            <View style={styles.trophyInfo}>
+                              <Text style={styles.trophyLabel}>🏆 {trophy.label}</Text>
+                              <Text style={styles.trophyDesc}>{trophy.desc}</Text>
                       </View>
-                    )}
-                    <View>
-                      <Text style={{ fontWeight: 'bold', color: unlocked ? '#1E40AF' : '#64748B', fontSize: 16 }}>{trophy.label}</Text>
-                      <Text style={{ color: '#64748B', fontSize: 13 }}>{trophy.desc}</Text>
                     </View>
-                  </View>
-                );
-              })}
-              <TouchableOpacity onPress={() => setShowTrophyModal(false)} style={{ marginTop: 12, backgroundColor: '#1E40AF', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 24 }}>
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>סגור</Text>
+                        ) : null;
+                      })}
+                    </ScrollView>
+                  ) : (
+                    <Text style={styles.noTrophiesText}>עדיין לא פתחת תגים. המשך במפגשים כדי לפתוח חדשים!</Text>
+                  )}
+                  <TouchableOpacity onPress={() => setShowTrophyModal(false)} style={styles.trophyCloseButton}>
+                    <Text style={styles.trophyCloseButtonText}>סגור</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
-      </SafeAreaView>
-    );
-  }
 
-  // Login view
-  return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <DynamicBackground />
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <Animated.ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              { translateY: slideAnim },
-              { scale: scaleAnim }
-            ]
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header with Logo in a circle and breathing animation */}
-          <Animated.View 
-            style={[
-              styles.header,
-              {
-                alignItems: 'center',
-                marginBottom: 32,
-                transform: [{
-                  scale: logoRotateAnim.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [1, 1.05, 1]
-                  })
-                }]
-              }
-            ]}
-          >
-            <View style={styles.logoCircleShadow}>
-              <View style={styles.logoCircle}>
-                <Image 
-                  source={require('../assets/logo.png')} 
-                  style={styles.headerLogo}
-                  resizeMode="contain"
-                />
               </View>
-            </View>
-      <Text style={styles.title}>ברוך הבא ל-NarraTIVE</Text>
-            <Text style={styles.subtitle}>מערכת טיפול נרטיבי מתקדמת</Text>
-          </Animated.View>
+        )}
+      </Animated.ScrollView>
 
-          {/* Welcome Card with gentle floating animation */}
+      {/* Initial Loading Overlay */}
+      {initialLoading && (
+        <View style={styles.loadingOverlay}>
           <Animated.View style={[
-            styles.welcomeCard,
-            {
-              opacity: fadeAnim,
-              transform: [
-                { scale: logoScale },
-                { translateY: logoRotateAnim.interpolate({
-                  inputRange: [0, 0.5, 1],
-                  outputRange: [0, -2, 0]
-                })}
-              ]
-            }
+            styles.loadingLogo,
+            { transform: [{ scale: logoScale }, { rotate: logoRotateAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: ['0deg', '360deg']
+            }) }] }
           ]}>
-            <Text style={styles.welcomeTitle}>הכנס את שמך להתחלה</Text>
-            <Text style={styles.welcomeDescription}>
-              המערכת תזהה אותך ותתאים לך טיפול אישי
-            </Text>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.nameInput}
-                placeholder="השם המלא שלך"
-                value={nameInput}
-                onChangeText={setNameInput}
-                placeholderTextColor="#94A3B8"
-                textAlign="right"
-                autoCorrect={false}
-                autoCapitalize="words"
-              />
-            </View>
-
-            <TouchableOpacity 
-              style={[
-                styles.searchButton,
-                (!nameInput.trim() || loading) && styles.searchButtonDisabled
-              ]}
-              onPress={handleNameSubmit}
-              disabled={!nameInput.trim() || loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.searchButtonText}>מצא את הפרופיל שלי</Text>
-              )}
-            </TouchableOpacity>
+            <Image 
+              source={require('../assets/logo.png')}
+              style={{ width: '100%', height: '100%', borderRadius: 50 }}
+            />
           </Animated.View>
-
-          {/* Features with staggered animations */}
-          <View style={styles.featuresContainer}>
-            <Text style={styles.featuresTitle}>מה תקבל במערכת?</Text>
-            {[
-              { icon: '🧠', title: 'טיפול מותאם אישית', desc: 'סיפורים טיפוליים המותאמים לחוויה האישית שלך' },
-              { icon: '📱', title: 'נגיש בכל מקום', desc: 'המשך את הטיפול מהבית, בקצב שלך' },
-              { icon: '��', title: 'מעקב התקדמות', desc: 'עקוב אחר השיפור שלך לאורך זמן' }
-            ].map((feature, index) => (
-              <Animated.View 
-                key={index}
-                style={[
-                  styles.feature,
-                  {
-                    opacity: fadeAnim,
-                    transform: [{
-                      translateX: slideAnim.interpolate({
-                        inputRange: [0, 30],
-                        outputRange: [0, 30 * (index + 1)]
-                      })
-                    }]
-                  }
-                ]}
-              >
-                <Text style={styles.featureIcon}>{feature.icon}</Text>
-                <View style={styles.featureContent}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.desc}</Text>
+          <Animated.Text style={[
+            styles.loadingTitle,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}>
+            NarraTIVE
+          </Animated.Text>
+          <Animated.Text style={[
+            styles.loadingSubtitle,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+          ]}>
+            הדרך שלך להחלמה. בבטחה.
+          </Animated.Text>
+          <ActivityIndicator size="large" color="#60A5FA" style={styles.loadingIndicator} />
                 </View>
-              </Animated.View>
-            ))}
-    </View>
-        </Animated.ScrollView>
-      </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }
@@ -810,7 +726,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#1E40AF',
-    // Add gradient overlay effect
     shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
@@ -818,99 +733,99 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   heroSection: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
+    marginTop: 24,
+    marginBottom: 24,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   logoMain: {
-    fontSize: 42,
+    fontSize: 34,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
   logoAccent: {
-    width: 60,
-    height: 4,
+    width: 40,
+    height: 2.5,
     backgroundColor: '#60A5FA',
-    borderRadius: 2,
-    marginTop: 8,
+    borderRadius: 1,
+    marginTop: 5,
   },
   tagline: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
     color: '#DBEAFE',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 13,
     color: '#BFDBFE',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 18,
     opacity: 0.9,
   },
   featuresGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 40,
+    marginBottom: 24,
   },
   featureCard: {
-    width: (width - 48 - 16) / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
-    padding: 20,
+    width: (width - 32 - 10) / 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 10,
+    padding: 14,
     alignItems: 'center',
-    marginBottom: 16,
-    backdropFilter: 'blur(10px)',
+    marginBottom: 10,
+    backdropFilter: 'blur(6px)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   featureIconContainer: {
-    width: 50,
-    height: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 25,
+    width: 36,
+    height: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  featureIcon: {
-    fontSize: 20,
     marginBottom: 8,
   },
+  featureIcon: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
   featureTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   featureSubtitle: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#BFDBFE',
     textAlign: 'center',
   },
   ctaButton: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    marginBottom: 32,
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   ctaContent: {
     flexDirection: 'row',
@@ -918,39 +833,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1E40AF',
-    marginRight: 12,
+    marginRight: 8,
   },
   ctaIcon: {
-    width: 32,
-    height: 32,
+    width: 24,
+    height: 24,
     backgroundColor: '#1E40AF',
-    borderRadius: 16,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   ctaArrow: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
   trustSection: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 24,
-    paddingHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   trustItem: {
     alignItems: 'center',
   },
   trustIcon: {
-    fontSize: 20,
-    marginBottom: 4,
+    fontSize: 16,
+    marginBottom: 2,
   },
   trustText: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#BFDBFE',
     textAlign: 'center',
   },
@@ -959,112 +874,95 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   footerText: {
-    fontSize: 11,
-    color: 'rgba(191, 219, 254, 0.7)',
+    fontSize: 9,
+    color: 'rgba(191, 219, 254, 0.6)',
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 12,
   },
   userHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   logoutButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 8,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   logoutButtonText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   userInfo: {
-    marginLeft: 16,
+    marginLeft: 10,
   },
   welcomeBackText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   userNameText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
   },
   logo: {
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   appName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
   },
   accentLine: {
-    width: 60,
-    height: 4,
+    width: 40,
+    height: 2.5,
     backgroundColor: '#60A5FA',
-    borderRadius: 2,
+    borderRadius: 1,
+    marginTop: 5,
   },
   quickStats: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   quickStatsTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   quickStatsSubtitle: {
-    fontSize: 16,
+    fontSize: 13,
     color: '#BFDBFE',
     textAlign: 'center',
   },
   continueButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    marginBottom: 32,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   continueButtonText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1E40AF',
-    marginRight: 12,
   },
   continueButtonArrow: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1E40AF',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  quickActionButton: {
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  quickActionIcon: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  quickActionText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    marginLeft: 6,
   },
   keyboardContainer: {
     flex: 1,
@@ -1102,14 +1000,21 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   submitButtonDisabled: {
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   submitButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1E40AF',
   },
@@ -1129,7 +1034,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   featureItem: {
-    width: (width - 48 - 16) / 2,
+    width: (width - 40 - 12) / 2,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 8,
     padding: 16,
@@ -1188,11 +1093,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#BFDBFE',
     textAlign: 'center',
   },
   scrollContent: {
@@ -1279,7 +1179,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
-    // Add gradient-like effect
     borderWidth: 0,
     borderColor: 'transparent',
   },
@@ -1298,18 +1197,18 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   anxietyIcon: {
-    fontSize: 48,
+    fontSize: 40,
     color: '#FFFFFF',
   },
   anxietyTitle: {
     fontSize: 28,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 8,
     textAlign: 'center',
+    marginBottom: 12,
   },
   anxietySubtitle: {
     fontSize: 16,
@@ -1318,306 +1217,305 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   anxietyExplanation: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  explanationCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
-    backdropFilter: 'blur(10px)',
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
+  explanationCard: {
+    // No specific styles here, just a container for explanation items
+  },
   explanationTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  explanationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  explanationDot: {
+    fontSize: 16,
+    color: '#60A5FA',
+    marginRight: 8,
+    fontWeight: 'bold',
+  },
+  explanationText: {
+    fontSize: 15,
+    color: '#BFDBFE',
+    flex: 1,
+  },
+  anxietySelectorContainer: {
+    marginBottom: 24,
+  },
+  selectorLabel: {
     fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 12,
     textAlign: 'center',
   },
-  explanationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  explanationDot: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
-  explanationText: {
-    fontSize: 14,
-    color: '#BFDBFE',
-  },
-  anxietySelectorContainer: {
-    marginBottom: 20,
-  },
-  selectorLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
   anxietySelector: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   selectorContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   selectorValue: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#FFFFFF',
+    width: 60,
+    textAlign: 'center',
     marginRight: 16,
   },
   selectorTextContainer: {
-    flex: 1,
+    // No specific styles here
   },
   selectorText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#FFFFFF',
+    marginBottom: 4,
   },
   selectorSubtext: {
     fontSize: 12,
     color: '#BFDBFE',
   },
   selectorArrow: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
     color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   encouragementContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 28,
     alignItems: 'center',
-    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   encouragementIcon: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    marginBottom: 8,
+    fontSize: 36,
+    marginBottom: 12,
   },
   encouragementText: {
     fontSize: 16,
     color: '#BFDBFE',
     textAlign: 'center',
+    lineHeight: 24,
   },
   anxietyActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 16,
   },
   anxietyBackButton: {
-    padding: 16,
-    borderRadius: 8,
+    flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   anxietyBackButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   anxietyStartButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
+    flex: 2,
+    backgroundColor: '#22C55E',
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   anxietyStartButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#1E40AF',
-    marginRight: 8,
+    color: '#FFFFFF',
+    marginRight: 6,
   },
   anxietyStartButtonIcon: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1E40AF',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   anxietyDropdownContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 0,
-    width: '100%',
-    maxWidth: 350,
-    maxHeight: '80%',
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.8,
+    maxHeight: '60%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   anxietyDropdownHeader: {
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    marginBottom: 14,
   },
   anxietyDropdownTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#1E40AF',
-    marginBottom: 8,
+    color: '#1E293B',
     textAlign: 'center',
+    marginBottom: 6,
   },
   anxietyDropdownSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#64748B',
     textAlign: 'center',
   },
   anxietyDropdownList: {
-    maxHeight: 300,
+    maxHeight: '75%',
   },
   anxietyDropdownContent: {
-    padding: 0,
+    paddingBottom: 8,
   },
   anxietyDropdownItem: {
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    marginBottom: 3,
   },
   anxietyDropdownItemSelected: {
     backgroundColor: '#EBF4FF',
   },
-  anxietyDropdownItemContent: {
+  anxietyDropdownItemText: {
+    fontSize: 14,
+    color: '#1E293B',
+    textAlign: 'right',
+  },
+  anxietyDropdownItemTextSelected: {
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  trophyModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 18,
+    width: width * 0.75,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  trophyModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E40AF',
+    marginTop: 10,
+  },
+  trophyList: {
+    maxHeight: 300,
+  },
+  trophyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    marginBottom: 18,
   },
-  anxietyDropdownValueContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-  },
-  anxietyDropdownValueContainerSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#2563EB',
-  },
-  anxietyDropdownValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  anxietyDropdownValueSelected: {
-    color: '#FFFFFF',
-  },
-  anxietyDropdownTextContainer: {
+  trophyInfo: {
     flex: 1,
   },
-  anxietyDropdownText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  anxietyDropdownTextSelected: {
-    color: '#3B82F6',
+  trophyLabel: {
     fontWeight: '700',
-  },
-  anxietyDropdownRange: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  anxietyDropdownCheckContainer: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  anxietyDropdownCheck: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  anxietyDropdownCloseButton: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    margin: 20,
-    marginTop: 0,
-  },
-  anxietyDropdownCloseText: {
+    color: '#1E40AF',
     fontSize: 16,
-    fontWeight: '600',
+    marginTop: 6,
+  },
+  trophyDesc: {
     color: '#64748B',
+    fontSize: 13,
+    marginTop: 3,
+    textAlign: 'center',
   },
-  logoCircleShadow: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+  noTrophiesText: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  logoCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#3B82F6',
+  trophyCloseButton: {
+    marginTop: 16,
+    backgroundColor: '#1E40AF',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 18,
+  },
+  trophyCloseButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });
 
 function getHairColor(key) {
   switch (key) {
-    case 'short': return '#8D5524';
-    case 'long': return '#C68642';
-    case 'blonde': return '#E0C068';
-    case 'black': return '#222';
-    default: return '#8D5524';
+    case 'blonde': return '#F5DEB3';
+    case 'brown': return '#8B4513';
+    case 'black': return '#000000';
+    case 'red': return '#B22222';
+    default: return '#000000';
   }
 }
 
 function getEyeColor(key) {
   switch (key) {
-    case 'blue': return '#4F8EF7';
-    case 'green': return '#4FC36E';
-    case 'brown': return '#8D5524';
-    case 'gray': return '#A0A0A0';
-    default: return '#4F8EF7';
+    case 'blue': return '#4682B4';
+    case 'green': return '#228B22';
+    case 'brown': return '#A52A2A';
+    default: return '#A52A2A';
   }
 }
 
 function getShirtColor(key) {
   switch (key) {
-    case 'red': return '#EF4444';
-    case 'blue': return '#3B82F6';
-    case 'green': return '#10B981';
-    case 'yellow': return '#FACC15';
-    default: return '#3B82F6';
+    case 'blue': return '#4682B4';
+    case 'green': return '#228B22';
+    case 'red': return '#B22222';
+    case 'purple': return '#800080';
+    default: return '#4682B4';
   }
 }
 
 function getSkinColor(key) {
   switch (key) {
-    case 'light': return '#F9D7B5';
-    case 'tan': return '#E0AC69';
-    case 'brown': return '#8D5524';
-    case 'dark': return '#5C4033';
-    default: return '#F9D7B5';
+    case 'light': return '#FCD5B4';
+    case 'medium': return '#DBB08E';
+    case 'dark': return '#A67B5B';
+    default: return '#DBB08E';
   }
 } 

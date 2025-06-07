@@ -9,19 +9,19 @@ import {
   ActivityIndicator, 
   Alert,
   Animated,
-  Dimensions
+  Dimensions,
+  Image
 } from 'react-native';
-import { fetchPatients } from '../api';
 import { useSession } from '../SessionContext';
 import LottieView from 'lottie-react-native';
 import DynamicBackground from '../components/DynamicBackground';
 
 const { width } = Dimensions.get('window');
 
-export default function PreSessionScreen({ navigation }) {
+export default function PreSessionScreen({ navigation, route }) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [patient, setPatient] = useState(null);
+  const patient = route?.params?.patient || null;
+  const [loading, setLoading] = useState(false);
   
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -33,21 +33,6 @@ export default function PreSessionScreen({ navigation }) {
   // Loader state for waiting for story
   const [waitingForStory, setWaitingForStory] = useState(false);
   const [storyError, setStoryError] = useState(null);
-
-  // Fetch patient data when component mounts
-  useEffect(() => {
-    fetchPatients()
-      .then(patients => {
-        if (patients && patients.length > 0) {
-          setPatient(patients[0]);
-        }
-        setLoading(false);
-      })
-      .catch(error => {
-        console.log('Error fetching patients:', error);
-        setLoading(false);
-      });
-  }, []);
 
   // Animation for step transitions
   useEffect(() => {
@@ -120,7 +105,7 @@ export default function PreSessionScreen({ navigation }) {
     } else {
       setWaitingForStory(true);
       try {
-        const result = await session.storyPromise;
+        const result = await session.getStoryPromise();
         if (result.status === 'success') {
           navigation.navigate('Session', {
             patient: session.patient,
@@ -197,19 +182,18 @@ export default function PreSessionScreen({ navigation }) {
       <DynamicBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>הכנה למפגש</Text>
-          <Text style={styles.headerSubtitle}>
-            שלב {currentStep + 1} מתוך {steps.length}
-          </Text>
+        <View style={styles.figmaHeader}>
+          <Image source={require('../assets/logo.png')} style={styles.figmaLogo} />
+          <Text style={styles.figmaHeaderTitle}>הכנה למפגש</Text>
+          <Text style={styles.figmaHeaderSubtitle}>שלב {currentStep + 1} מתוך {steps.length}</Text>
         </View>
 
         {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
+        <View style={styles.figmaProgressContainer}>
+          <View style={styles.figmaProgressTrack}>
             <Animated.View 
               style={[
-                styles.progressBar,
+                styles.figmaProgressBar,
                 {
                   width: progressAnim.interpolate({
                     inputRange: [0, 1],
@@ -220,12 +204,12 @@ export default function PreSessionScreen({ navigation }) {
               ]} 
             />
           </View>
-          <View style={styles.progressSteps}>
+          <View style={styles.figmaProgressSteps}>
             {steps.map((_, index) => (
               <View
                 key={index}
                 style={[
-                  styles.progressStep,
+                  styles.figmaProgressStep,
                   { 
                     backgroundColor: index <= currentStep ? currentStepData.color : '#E2E8F0',
                     borderColor: index === currentStep ? currentStepData.color : 'transparent',
@@ -233,7 +217,7 @@ export default function PreSessionScreen({ navigation }) {
                 ]}
               >
                 <Text style={[
-                  styles.progressStepText,
+                  styles.figmaProgressStepText,
                   { color: index <= currentStep ? '#FFFFFF' : '#64748B' }
                 ]}>
                   {index + 1}
@@ -246,7 +230,7 @@ export default function PreSessionScreen({ navigation }) {
         {/* Step Content */}
         <Animated.View 
           style={[
-            styles.stepCard,
+            styles.figmaStepCard,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
@@ -254,37 +238,37 @@ export default function PreSessionScreen({ navigation }) {
             }
           ]}
         >
-          <View style={[styles.stepIconContainer, { backgroundColor: currentStepData.color }]}>
-            <Text style={styles.stepIcon}>{currentStepData.icon}</Text>
+          <View style={[styles.figmaStepIconContainer, { backgroundColor: currentStepData.color }]}>
+            <Text style={styles.figmaStepIcon}>{currentStepData.icon}</Text>
           </View>
           
-          <Text style={styles.stepTitle}>{currentStepData.title}</Text>
-          <Text style={styles.stepContent}>{currentStepData.content}</Text>
+          <Text style={styles.figmaStepTitle}>{currentStepData.title}</Text>
+          <Text style={styles.figmaStepContent}>{currentStepData.content}</Text>
           
           {/* Tip Section */}
-          <View style={styles.tipContainer}>
-            <View style={styles.tipIcon}>
-              <Text style={styles.tipIconText}>💡</Text>
+          <View style={styles.figmaTipContainer}>
+            <View style={styles.figmaTipIcon}>
+              <Text style={styles.figmaTipIconText}>💡</Text>
             </View>
-            <Text style={styles.tipText}>{currentStepData.tip}</Text>
+            <Text style={styles.figmaTipText}>{currentStepData.tip}</Text>
           </View>
         </Animated.View>
 
         {/* Navigation Buttons */}
-        <View style={styles.navigationContainer}>
+        <View style={styles.figmaNavigationContainer}>
           {currentStep > 0 && (
             <TouchableOpacity
-              style={styles.backButton}
+              style={styles.figmaBackButton}
               onPress={handleBack}
               activeOpacity={0.8}
             >
-              <Text style={styles.backButtonText}>← חזור</Text>
+              <Text style={styles.figmaBackButtonText}>← חזור</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
             style={[
-              styles.nextButton,
+              styles.figmaNextButton,
               { 
                 backgroundColor: currentStepData.color,
                 flex: currentStep === 0 ? 1 : 0.6,
@@ -293,23 +277,23 @@ export default function PreSessionScreen({ navigation }) {
             onPress={handleNext}
             activeOpacity={0.8}
           >
-            <Text style={styles.nextButtonText}>
+            <Text style={styles.figmaNextButtonText}>
               {isLastStep ? "התחל מפגש 🚀" : "המשך →"}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Emergency Support */}
-        <View style={styles.supportCard}>
-          <View style={styles.supportHeader}>
-            <Text style={styles.supportIcon}>🆘</Text>
-            <Text style={styles.supportTitle}>תמיכה מיידית</Text>
+        <View style={styles.figmaSupportCard}>
+          <View style={styles.figmaSupportHeader}>
+            <Text style={styles.figmaSupportIcon}>��</Text>
+            <Text style={styles.figmaSupportTitle}>תמיכה מיידית</Text>
           </View>
-          <Text style={styles.supportText}>
+          <Text style={styles.figmaSupportText}>
             זקוק לעזרה? אל תהסס לפנות למטפל שלך או לשירותי חירום
           </Text>
-          <TouchableOpacity style={styles.supportButton}>
-            <Text style={styles.supportButtonText}>צור קשר</Text>
+          <TouchableOpacity style={styles.figmaSupportButton}>
+            <Text style={styles.figmaSupportButtonText}>צור קשר</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -346,187 +330,193 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  header: {
+  figmaHeader: {
     alignItems: 'center',
     marginBottom: 32,
     marginTop: 20,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1E293B',
-    textAlign: 'center',
+  figmaLogo: {
+    width: 80,
+    height: 80,
+    resizeMode: 'contain',
     marginBottom: 8,
   },
-  headerSubtitle: {
-    fontSize: 16,
+  figmaHeaderTitle: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#1E293B',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  figmaHeaderSubtitle: {
+    fontSize: 17,
     color: '#64748B',
     textAlign: 'center',
   },
-  progressContainer: {
+  figmaProgressContainer: {
     marginBottom: 32,
   },
-  progressTrack: {
-    height: 6,
+  figmaProgressTrack: {
+    height: 8,
     backgroundColor: '#E2E8F0',
-    borderRadius: 3,
+    borderRadius: 4,
     marginBottom: 20,
   },
-  progressBar: {
+  figmaProgressBar: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 4,
   },
-  progressSteps: {
+  figmaProgressSteps: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
   },
-  progressStep: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  figmaProgressStep: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
   },
-  progressStepText: {
-    fontSize: 14,
-    fontWeight: '600',
+  figmaProgressStepText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
-  stepCard: {
+  figmaStepCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 32,
-    marginBottom: 24,
-    borderLeftWidth: 6,
+    borderRadius: 24,
+    padding: 36,
+    marginBottom: 28,
+    borderLeftWidth: 7,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 6,
   },
-  stepIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  figmaStepIconContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
-  stepIcon: {
-    fontSize: 36,
+  figmaStepIcon: {
+    fontSize: 40,
   },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+  figmaStepTitle: {
+    fontSize: 26,
+    fontWeight: '800',
     color: '#1E293B',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
-  stepContent: {
-    fontSize: 16,
+  figmaStepContent: {
+    fontSize: 17,
     color: '#475569',
     textAlign: 'center',
-    lineHeight: 26,
-    marginBottom: 24,
+    lineHeight: 28,
+    marginBottom: 28,
   },
-  tipContainer: {
+  figmaTipContainer: {
     flexDirection: 'row',
     backgroundColor: '#FEF3C7',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 14,
+    padding: 18,
     alignItems: 'center',
   },
-  tipIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  figmaTipIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#F59E0B',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  tipIconText: {
-    fontSize: 16,
+  figmaTipIconText: {
+    fontSize: 18,
   },
-  tipText: {
+  figmaTipText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: '#92400E',
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  navigationContainer: {
+  figmaNavigationContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    gap: 14,
+    marginBottom: 28,
   },
-  backButton: {
+  figmaBackButton: {
     flex: 0.4,
     backgroundColor: '#F1F5F9',
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  figmaBackButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
     color: '#475569',
   },
-  nextButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
+  figmaNextButton: {
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+  figmaNextButtonText: {
+    fontSize: 17,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
-  supportCard: {
+  figmaSupportCard: {
     backgroundColor: '#FEF2F2',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 18,
+    padding: 24,
     borderWidth: 1,
     borderColor: '#FECACA',
   },
-  supportHeader: {
+  figmaSupportHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  supportIcon: {
-    fontSize: 24,
-    marginRight: 8,
+  figmaSupportIcon: {
+    fontSize: 26,
+    marginRight: 10,
   },
-  supportTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  figmaSupportTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#991B1B',
   },
-  supportText: {
-    fontSize: 14,
+  figmaSupportText: {
+    fontSize: 15,
     color: '#7F1D1D',
-    lineHeight: 20,
-    marginBottom: 16,
+    lineHeight: 22,
+    marginBottom: 18,
   },
-  supportButton: {
+  figmaSupportButton: {
     backgroundColor: '#DC2626',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 10,
     alignSelf: 'flex-start',
   },
-  supportButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+  figmaSupportButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 }); 

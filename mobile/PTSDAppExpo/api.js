@@ -1,12 +1,14 @@
-export const API_BASE_URL = 'http://172.20.10.2:5000'; // Updated to use computer's IP for mobile access
+export const API_BASE_URL = 'http://10.100.102.3:5000';
 
 export async function fetchPatients() {
+  console.log('[API] GET', `${API_BASE_URL}/api/patients`);
   const res = await fetch(`${API_BASE_URL}/api/patients`);
   const data = await res.json();
   return data.patients || [];
 }
 
 export async function fetchStories(patientId) {
+  console.log('[API] GET', `${API_BASE_URL}/api/stories`);
   const res = await fetch(`${API_BASE_URL}/api/stories`);
   const data = await res.json();
   // Filter stories by patientId
@@ -19,11 +21,13 @@ export function getAudioUrl(audioFile) {
 
 // Patients
 export async function fetchPatient(patientId) {
+  console.log('[API] GET', `${API_BASE_URL}/api/patients/${patientId}`);
   const res = await fetch(`${API_BASE_URL}/api/patients/${patientId}`);
   const data = await res.json();
   return data.patient;
 }
 export async function createPatient(patient) {
+  console.log('[API] POST', `${API_BASE_URL}/api/patients`, patient);
   const res = await fetch(`${API_BASE_URL}/api/patients`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -32,6 +36,7 @@ export async function createPatient(patient) {
   return res.json();
 }
 export async function updatePatient(patientId, update) {
+  console.log('[API] PUT', `${API_BASE_URL}/api/patients/${patientId}`, update);
   const res = await fetch(`${API_BASE_URL}/api/patients/${patientId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -40,6 +45,7 @@ export async function updatePatient(patientId, update) {
   return res.json();
 }
 export async function patientLookup(name) {
+  console.log('[API] POST', `${API_BASE_URL}/api/patient-lookup`, { name });
   const res = await fetch(`${API_BASE_URL}/api/patient-lookup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -50,6 +56,7 @@ export async function patientLookup(name) {
 
 // Profile
 export async function submitProfile(profile) {
+  console.log('[API] POST', `${API_BASE_URL}/api/profile`, profile);
   const res = await fetch(`${API_BASE_URL}/api/profile`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -60,16 +67,19 @@ export async function submitProfile(profile) {
 
 // Plans
 export async function fetchPlans() {
+  console.log('[API] GET', `${API_BASE_URL}/api/plans`);
   const res = await fetch(`${API_BASE_URL}/api/plans`);
   const data = await res.json();
   return data.plans || [];
 }
 export async function fetchPlan(planId) {
+  console.log('[API] GET', `${API_BASE_URL}/api/plans/${planId}`);
   const res = await fetch(`${API_BASE_URL}/api/plans/${planId}`);
   const data = await res.json();
   return data.plan;
 }
 export async function createPlan(plan) {
+  console.log('[API] POST', `${API_BASE_URL}/api/plans`, plan);
   const res = await fetch(`${API_BASE_URL}/api/plans`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -78,6 +88,7 @@ export async function createPlan(plan) {
   return res.json();
 }
 export async function updatePlan(planId, update) {
+  console.log('[API] PUT', `${API_BASE_URL}/api/plans/${planId}`, update);
   const res = await fetch(`${API_BASE_URL}/api/plans/${planId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -88,11 +99,13 @@ export async function updatePlan(planId, update) {
 
 // Stories
 export async function fetchStory(storyId) {
+  console.log('[API] GET', `${API_BASE_URL}/api/stories/${storyId}`);
   const res = await fetch(`${API_BASE_URL}/api/stories/${storyId}`);
   const data = await res.json();
   return data.story;
 }
 export async function createStory(story) {
+  console.log('[API] POST', `${API_BASE_URL}/api/stories`, story);
   const res = await fetch(`${API_BASE_URL}/api/stories`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -101,6 +114,7 @@ export async function createStory(story) {
   return res.json();
 }
 export async function updateStory(storyId, update) {
+  console.log('[API] PUT', `${API_BASE_URL}/api/stories/${storyId}`, update);
   const res = await fetch(`${API_BASE_URL}/api/stories/${storyId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -111,6 +125,7 @@ export async function updateStory(storyId, update) {
 
 // SUD Feedback
 export async function submitSudFeedback(feedback) {
+  console.log('[API] POST', `${API_BASE_URL}/api/submit-sud-feedback`, feedback);
   const res = await fetch(`${API_BASE_URL}/api/submit-sud-feedback`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -120,6 +135,7 @@ export async function submitSudFeedback(feedback) {
 }
 export async function fetchSudFeedback({ planId, patientId }) {
   const url = planId ? `${API_BASE_URL}/api/get-sud-feedback?plan_id=${planId}` : `${API_BASE_URL}/api/get-sud-feedback?patient_id=${patientId}`;
+  console.log('[API] GET', url);
   const res = await fetch(url);
   const data = await res.json();
   return data.feedback || [];
@@ -127,6 +143,7 @@ export async function fetchSudFeedback({ planId, patientId }) {
 
 // Audit
 export async function fetchAudit() {
+  console.log('[API] GET', `${API_BASE_URL}/api/audit`);
   const res = await fetch(`${API_BASE_URL}/api/audit`);
   const data = await res.json();
   return data.audit || [];
@@ -134,6 +151,7 @@ export async function fetchAudit() {
 
 // Compliance
 export async function fetchCompliance(storyId) {
+  console.log('[API] GET', `${API_BASE_URL}/api/compliance/${storyId}`);
   const res = await fetch(`${API_BASE_URL}/api/compliance/${storyId}`);
   const data = await res.json();
   return data.compliance;
@@ -141,6 +159,7 @@ export async function fetchCompliance(storyId) {
 
 // Patient Data Parsing
 export async function parsePatientData(patient_data) {
+  console.log('[API] POST', `${API_BASE_URL}/api/parse-patient-data`, { patient_data });
   const res = await fetch(`${API_BASE_URL}/api/parse-patient-data`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -151,6 +170,7 @@ export async function parsePatientData(patient_data) {
 
 // Exa Research APIs
 export async function searchPTSDResearch(query) {
+  console.log('[API] POST', `${API_BASE_URL}/api/research/ptsd`, { query });
   const res = await fetch(`${API_BASE_URL}/api/research/ptsd`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -161,6 +181,7 @@ export async function searchPTSDResearch(query) {
 }
 
 export async function searchCBTTechniques(technique) {
+  console.log('[API] POST', `${API_BASE_URL}/api/research/cbt-techniques`, { technique });
   const res = await fetch(`${API_BASE_URL}/api/research/cbt-techniques`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -171,24 +192,28 @@ export async function searchCBTTechniques(technique) {
 }
 
 export async function fetchExposureTherapyMethods() {
+  console.log('[API] GET', `${API_BASE_URL}/api/research/exposure-therapy`);
   const res = await fetch(`${API_BASE_URL}/api/research/exposure-therapy`);
   const data = await res.json();
   return data.results || [];
 }
 
 export async function fetchSUDScaleResearch() {
+  console.log('[API] GET', `${API_BASE_URL}/api/research/sud-scale`);
   const res = await fetch(`${API_BASE_URL}/api/research/sud-scale`);
   const data = await res.json();
   return data.results || [];
 }
 
 export async function fetchNarrativeTherapy() {
+  console.log('[API] GET', `${API_BASE_URL}/api/research/narrative-therapy`);
   const res = await fetch(`${API_BASE_URL}/api/research/narrative-therapy`);
   const data = await res.json();
   return data.results || [];
 }
 
 export async function searchTherapistResources(topic) {
+  console.log('[API] POST', `${API_BASE_URL}/api/resources/therapist`, { topic });
   const res = await fetch(`${API_BASE_URL}/api/resources/therapist`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -212,15 +237,20 @@ export async function fetchTriggerManagement() {
 
 // Scenario-based therapy session APIs
 export async function startScenario(patientId, initialSud) {
-  const res = await fetch(`${API_BASE_URL}/api/start-scenario`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      patient_id: patientId,
-      initial_sud: initialSud 
-    }),
-  });
-  return res.json();
+  console.log('[API] POST', `${API_BASE_URL}/api/start-scenario`, { patient_id: patientId, initial_sud: initialSud });
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/start-scenario`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_id: patientId, initial_sud: initialSud }),
+    });
+    const data = await res.json();
+    console.log('[API] Response status:', res.status, 'body:', data);
+    return data;
+  } catch (err) {
+    console.log('[API] ERROR calling /api/start-scenario:', err);
+    throw err;
+  }
 }
 
 export async function nextScenario(patientId, currentSud, scenarioState) {
