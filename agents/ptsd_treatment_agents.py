@@ -2,147 +2,31 @@
 
 import os
 import json
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from openai import OpenAI
 import requests
+from pymongo import MongoClient
 from dotenv import load_dotenv
 from utils.prompt_loader import load_prompt
-import logging
+from utils.logging_setup import get_logger
 load_dotenv()
 
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Initialize OpenAI client
-openai_client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url="https://api.openai.com/v1"
-)
+# openai_client = OpenAI(
+#     api_key=os.getenv("OPENAI_API_KEY"),
+#     base_url="https://api.openai.com/v1"
+# )
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
 
-class UnifiedLLMClient:
-    """Unified client that handles OpenAI and Ollama (free local LLM) with automatic fallback."""
-    
-    def __init__(self):
-        self.openai_client = openai_client
-        self.use_openai_first = True  # Try OpenAI first, fallback to Ollama
-        self.use_ollama_first = False
-    
-    def set_primary_provider(self, provider: str):
-        """Set which provider to try first ('openai' or 'ollama')."""
-        if provider.lower() == 'openai':
-            self.use_openai_first = True
-            self.use_ollama_first = False
-        elif provider.lower() == 'ollama':
-            self.use_openai_first = False
-            self.use_ollama_first = True
-        else:
-            raise ValueError("Provider must be 'openai' or 'ollama'")
-    
-    def get_current_primary_provider(self):
-        if self.use_openai_first:
-            return 'openai'
-        elif self.use_ollama_first:
-            return 'ollama'
-        return 'openai'
-    
-    def chat_completion(self, messages, **kwargs):
-        max_tokens = kwargs.pop('max_tokens', 2000)
-        temperature = kwargs.pop('temperature', 0.7)
-        model = kwargs.pop('model', 'gpt-4o')
-        
-        # Provider order: primary, then fallback
-        provider_order = []
-        if self.use_openai_first:
-            provider_order = ['openai', 'ollama']
-        elif self.use_ollama_first:
-            provider_order = ['ollama', 'openai']
-        else:
-            provider_order = ['openai', 'ollama']
-        
-        last_exception = None
-        for provider in provider_order:
-            try:
-                logger.info(f"Attempting completion with provider: {provider}")
-                if provider == 'openai':
-                    return self._openai_completion(messages, model, max_tokens, temperature, **kwargs)
-                elif provider == 'ollama':
-                    return self._ollama_completion(messages, max_tokens, temperature)
-            except Exception as e:
-                logger.warning(f"{provider.capitalize()} request failed: {e}", exc_info=True)
-                last_exception = e
-                continue
-        logger.error(f"All providers failed. Last error: {last_exception}")
-        raise RuntimeError(f"All providers failed. Last error: {last_exception}")
-
-    def _openai_completion(self, messages, model, max_tokens, temperature, **kwargs):
-        completion = self.openai_client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=kwargs.get('top_p', 0.95),
-            frequency_penalty=kwargs.get('frequency_penalty', 0),
-            presence_penalty=kwargs.get('presence_penalty', 0),
-            stop=kwargs.get('stop'),
-            stream=False
-        )
-        return {
-            'content': completion.choices[0].message.content,
-            'provider': 'openai',
-            'model': model,
-            'raw_response': json.loads(completion.to_json())
-        }
-
-    def _ollama_completion(self, messages, max_tokens, temperature):
-        """Call Ollama local LLM via HTTP API."""
-        prompt = self._ollama_prompt_from_messages(messages)
-        payload = {
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "num_predict": max_tokens,
-                "temperature": temperature
-            }
-        }
-        response = requests.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=120)
-        response.raise_for_status()
-        data = response.json()
-        return {
-            'content': data.get('response', ''),
-            'provider': 'ollama',
-            'model': OLLAMA_MODEL,
-            'raw_response': data
-        }
-    
-    def _ollama_prompt_from_messages(self, messages):
-        prompt = ""
-        for msg in messages:
-            role = msg.get('role', '')
-            if isinstance(msg['content'], str):
-                content = msg['content']
-            elif isinstance(msg['content'], list):
-                content = " ".join([item.get('text', '') for item in msg['content'] if isinstance(item, dict)])
-            else:
-                content = str(msg['content'])
-            if role == 'system':
-                prompt += f"[SYSTEM]\n{content}\n"
-            elif role == 'user':
-                prompt += f"[USER]\n{content}\n"
-            elif role == 'assistant':
-                prompt += f"[ASSISTANT]\n{content}\n"
-        return prompt
-
-# Initialize unified client
-client = UnifiedLLMClient()
+# MongoDB configuration
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/ptsd_stories")
+mongo_client = MongoClient(MONGO_URI)
+mongo_db = mongo_client.get_database()
 
 class OrchestratorAgent:
     """Manages the execution of other agents to generate PTSD exposure scenarios."""
@@ -157,7 +41,7 @@ class OrchestratorAgent:
         self.output_dir = "generated_stories"
         
         # Set preferred provider
-        client.set_primary_provider(preferred_provider)
+        # client.set_primary_provider(preferred_provider)
         
         # Create output directory if it doesn't exist
         if not os.path.exists(self.output_dir):
@@ -165,12 +49,13 @@ class OrchestratorAgent:
         
     def set_preferred_provider(self, provider: str):
         """Set the preferred LLM provider ('openai' or 'ollama')."""
-        client.set_primary_provider(provider)
+        # client.set_primary_provider(provider)
         logger.info(f"Preferred provider set to: {provider}")
     
     def get_current_provider(self):
         """Get the current primary provider."""
-        return client.get_current_primary_provider()
+        # return client.get_current_primary_provider()
+        return "openai"  # Placeholder return, actual implementation needed
     
     def set_patient_data(self, patient_data: str):
         """Set the patient data to be used for generating scenarios."""
@@ -254,7 +139,10 @@ class OrchestratorAgent:
             story = self.story_gen.generate_story(
                 part, 
                 plan,
-                scenario if scenario else None  # Pass previous parts if they exist
+                scenario if scenario else None,  # Pass previous parts if they exist
+                rules=None,
+                min_words=1000,
+                patient_context=""
             )
             scenario.append(story)
                        
@@ -411,69 +299,324 @@ class StoryGenAgent:
     
     def __init__(self):
         self._prompt = load_prompt('story_gen_prompt.txt')
+    
+    def _get_patient_from_mongo(self, patient_id: str) -> Optional[Dict]:
+        """Fetch patient data from MongoDB patients collection."""
+        try:
+            patient = mongo_db.patients.find_one({'patient_id': patient_id}, {'_id': 0})
+            if patient:
+                logger.info(f"Successfully retrieved patient data for ID: {patient_id}")
+                return patient
+            else:
+                logger.warning(f"No patient found with ID: {patient_id}")
+                return None
+        except Exception as e:
+            logger.error(f"Error fetching patient from MongoDB: {e}")
+            return None
+    
+    def _get_hebrew_pronoun(self, gender: str) -> str:
+        """Get the correct Hebrew pronoun based on gender."""
+        gender_pronouns = {
+            'male': 'אתה',
+            'female': 'את', 
+            'neutral': 'אתה'  # Default to male form for neutral
+        }
+        return gender_pronouns.get(gender.lower(), 'אתה')
+    
+    def _format_patient_data_for_prompt(self, patient: Dict) -> str:
+        """Format patient data from MongoDB into a comprehensive text for the AI prompt."""
+        if not patient:
+            return "לא נמצא מידע על המטופל"
+        
+        # Extract and format patient information
+        formatted_data = []
+        
+        # Basic info
+        name = patient.get('name', 'לא צוין')
+        gender = patient.get('gender', 'neutral')
+        age = patient.get('age', 'לא צוין')
+        pronoun = self._get_hebrew_pronoun(gender)
+        
+        formatted_data.append(f"שם המטופל: {name}")
+        formatted_data.append(f"גיל: {age}")
+        formatted_data.append(f"מין: {gender}")
+        formatted_data.append(f"כינוי: {pronoun}")
+        
+        # Professional/personal info
+        if patient.get('occupation'):
+            formatted_data.append(f"מקצוע: {patient['occupation']}")
+        
+        if patient.get('marital_status'):
+            formatted_data.append(f"מצב משפחתי: {patient['marital_status']}")
+        
+        if patient.get('children'):
+            formatted_data.append(f"ילדים: {patient['children']}")
+        
+        # Trauma and triggers
+        if patient.get('trauma_type'):
+            formatted_data.append(f"סוג טראומה: {patient['trauma_type']}")
+        
+        if patient.get('trauma_description'):
+            formatted_data.append(f"תיאור הטראומה: {patient['trauma_description']}")
+        
+        # Main symptoms/triggers
+        if patient.get('ptsd_symptoms'):
+            symptoms = patient['ptsd_symptoms']
+            if isinstance(symptoms, list):
+                formatted_data.append(f"תסמיני PTSD: {', '.join(symptoms)}")
+            else:
+                formatted_data.append(f"תסמיני PTSD: {symptoms}")
+        
+        if patient.get('main_avoidances'):
+            avoidances = patient['main_avoidances']
+            if isinstance(avoidances, list):
+                formatted_data.append(f"התנהגויות הימנעות: {', '.join(avoidances)}")
+            else:
+                formatted_data.append(f"התנהגויות הימנעות: {avoidances}")
+        
+        if patient.get('triggers'):
+            triggers = patient['triggers']
+            if isinstance(triggers, list):
+                # Handle both string triggers and dict triggers with SUD levels
+                trigger_strs = []
+                for trigger in triggers:
+                    if isinstance(trigger, dict):
+                        if 'name' in trigger:
+                            trigger_strs.append(trigger['name'])
+                        elif 'trigger' in trigger:
+                            trigger_strs.append(trigger['trigger'])
+                    else:
+                        trigger_strs.append(str(trigger))
+                formatted_data.append(f"טריגרים ספציפיים: {', '.join(trigger_strs)}")
+            else:
+                formatted_data.append(f"טריגרים ספציפיים: {triggers}")
+        
+        # Coping mechanisms and strengths
+        if patient.get('coping_mechanisms'):
+            coping = patient['coping_mechanisms']
+            if isinstance(coping, list):
+                formatted_data.append(f"מנגנוני התמודדות: {', '.join(coping)}")
+            else:
+                formatted_data.append(f"מנגנוני התמודדות: {coping}")
+        
+        if patient.get('strengths'):
+            strengths = patient['strengths']
+            if isinstance(strengths, list):
+                formatted_data.append(f"חוזקות אישיות: {', '.join(strengths)}")
+            else:
+                formatted_data.append(f"חוזקות אישיות: {strengths}")
+        
+        # Hobbies and interests
+        if patient.get('hobbies'):
+            hobbies = patient['hobbies']
+            if isinstance(hobbies, list):
+                formatted_data.append(f"תחביבים: {', '.join(hobbies)}")
+            else:
+                formatted_data.append(f"תחביבים: {hobbies}")
+        
+        # Treatment goals
+        if patient.get('treatment_goals'):
+            goals = patient['treatment_goals']
+            if isinstance(goals, list):
+                formatted_data.append(f"מטרות טיפול: {', '.join(goals)}")
+            else:
+                formatted_data.append(f"מטרות טיפול: {goals}")
+        
+        # Additional context
+        if patient.get('background'):
+            formatted_data.append(f"רקע נוסף: {patient['background']}")
+        
+        if patient.get('notes'):
+            formatted_data.append(f"הערות: {patient['notes']}")
+        
+        # Join all formatted data
+        return "\n".join(formatted_data)
             
-    def generate_story(self, part: int, plan: str, previous_parts: List[str] = None, rules: str = None, min_words: int = 1000) -> str:
-        """Generate a detailed story from a scenario plan.
+    def generate_story(self, part: int, plan: str, previous_parts: List[str] = None, rules: str = None, min_words: int = 1000, patient_id: str = None, patient_context: str = "") -> str:
+        logger.info(f"StoryGenAgent: Generating DEEPLY PERSONALIZED story for part {part} (min words: {min_words})")
         
-        Args:
-            part: The part number (1-3)
-            plan: The approved plan to expand into a story
-            previous_parts: List of previous story parts (if any)
-            rules: String of rules to follow
-        Returns:
-            A detailed scenario description in Hebrew
-        """
-        logger.info(f"StoryGenAgent: Generating story for part {part} (min words: {min_words})")
+        # Fetch real patient data from MongoDB if patient_id is provided
+        real_patient_data = None
+        if patient_id:
+            real_patient_data = self._get_patient_from_mongo(patient_id)
+            if real_patient_data:
+                # Use MongoDB data and format it for the AI
+                formatted_patient_data = self._format_patient_data_for_prompt(real_patient_data)
+                logger.info(f"Using real patient data from MongoDB for patient_id: {patient_id}")
+                logger.debug(f"Formatted patient data: {formatted_patient_data}")
+            else:
+                logger.warning(f"Could not retrieve patient data for patient_id: {patient_id}, falling back to patient_context")
+                formatted_patient_data = patient_context
+        else:
+            logger.info("No patient_id provided, using patient_context parameter")
+            formatted_patient_data = patient_context
+        
+        # Use the formatted patient data from MongoDB as the primary source
+        # This now contains real, structured patient information
+        full_patient_context = formatted_patient_data
+        
+        # Create intelligent summary of previous parts that maintains personal continuity
+        previous_summary = ""
+        if previous_parts:
+            # Don't just truncate - create meaningful summary
+            joined = " ".join(previous_parts)
+            if len(joined) > 300:
+                previous_summary = f"""
+סיכום החלקים הקודמים עם המשכיות אישית:
+{joined[:300]}...
 
-        
-        # Determine minimum word count based on part
-        if part == 1:
-            min_words = 1200
-        elif part == 2:
-            min_words = 2000
-        elif part == 3:
-            min_words = 3000
-        
-        # Create chat prompt with system role and context
+התקדמות עד כה: בחלקים הקודמים הצלחת להתמודד עם אתגרים והוכחת לעצמך את היכולת שלך להתגבר על הקשיים.
+אלמנטים אישיים לשמירה: שמור על החוזקות שגילית בחלקים הקודמים והמשך לבנות עליהם.
+"""
+            else:
+                previous_summary = f"החלקים הקודמים: {joined}"
+
+        # Enhanced personalization prompt that works with ACTUAL patient data
+        enhanced_system_prompt = f"""
+אתה מטפל PTSD מומחה ביצירת סיפורים טיפוליים מותאמים אישית.
+
+המטרה המרכזית: ליצור סיפור שמשקף בדיוק את המידע האישי הספציפי של המטופל.
+
+{self._prompt}
+
+הנחיות להתאמה אישית מבוססת נתונים אמיתיים:
+
+1. נתח בעמקות את כל המידע על המטופל שסופק
+2. זהה פרטים אישיים ספציפיים: שם, גיל, מקצוע, מצב משפחתי, תחביבים, חוזקות
+3. זהה את הטריגרים הספציפיים וההימנעויות המדויקות
+4. זהה את הסיטואציות והמקומות הרלוונטיים לחיי המטופל
+5. שלב את כל הפרטים הללו באופן טבעי ומשמעותי בסיפור
+6. התייחס לרקע התרבותי והאישי הספציפי
+7. השתמש בדוגמאות מעולמו האמיתי של המטופל
+8. צור קשרים בין התוכן הטיפולי לחיים האמיתיים שלו
+
+הנחיות עדינות לשילוב טריגרים ותסמינים:
+- שלב את הטריגרים והתסמינים של המטופל בעדינות, דרך תיאורים של סיטואציות, רגשות או אווירה, מבלי להזכיר אותם במפורש או לתייג אותם.
+- אל תשתמש בשפה קלינית או ישירה (למשל: "בגלל ה-PTSD שלך" או "אתה מפחד מצעקות").
+- תן לקורא להבין את הקשיים דרך החוויה, לא דרך הסבר ישיר.
+- הימנע מאזכור מפורש של אבחנה או רשימת טריגרים.
+
+כללי יצירה:
+- כתוב בגוף שני ("אתה") לאורך כל הסיפור
+- שלב פרטים אישיים באופן טבעי ולא מאולץ
+- הראה הבנה עמיקה של המטופל כאדם ייחודי
+- התייחס לחוזקות ולמשאבים האישיים שלו
+- צור סיפור שמרגיש אמיתי ורלוונטי דווקא לו
+
+{f"כללים נוספים: {rules}" if rules else ""}
+"""
+
+        # Enhanced user prompt that emphasizes using actual patient data
+        user_prompt = f"""
+מידע מלא על המטופל (השתמש בכל הפרטים הספציפיים הללו בסיפור):
+{full_patient_context}
+
+{previous_summary}
+
+תוכנית החשיפה לחלק {part}:
+{plan}
+
+צור סיפור טיפולי של לפחות {min_words} מילים שמותאם בדיוק למטופל הזה בהתבסס על המידע האמיתי שלו.
+
+דרישות חובה:
+1. השתמש בפרטים האישיים הספציפיים שצוינו
+2. התייחס למצבים ולמקומות מחייו האמיתיים
+3. שלב את הטריגרים והאתגרים הספציפיים שלו
+4. הראה הבנה עמיקה של האישיות והרקע שלו
+5. צור חיבורים משמעותיים בין הטיפול לחיים שלו
+6. השתמש בשפה ובטון שמתאימים לו אישית
+
+הסיפור חייב להרגיש כמו שנכתב במיוחד עבור המטופל הספציפי הזה, לא כמו סיפור גנרי.
+"""
+
         messages = [
             {
                 "role": "system",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": self._prompt + (f"\n\nRules to follow:\n{rules}" if rules else "")
-                    }
-                ]
+                "content": enhanced_system_prompt
             },
             {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            f"Previous parts:\n{''.join(previous_parts) if previous_parts else 'None'}\n\n"
-                            f"Generate part {part} (please write a story of at least {min_words} words, detailed, engaging, and in Hebrew):\n{plan}\n"
-                            f"The story MUST be at least {min_words} words. Do not stop before you reach this length. If you reach the end before {min_words} words, add more details, descriptions, or dialogue to meet the requirement."
-                        )
-                    }
-                ]
+                "role": "user", 
+                "content": user_prompt
             }
         ]
         
-        # Generate completion using OpenAI
         completion = client.chat_completion(
             messages,
-            max_tokens=3000,
-            temperature=0.7,
-            model=os.getenv("DEPLOYMENT_NAME", "gpt-4o")  # Use the deployment name from environment variable
+            max_tokens=4000,  # Increased for detailed personalization
+            temperature=0.8,  # Higher for more creative personalization
+            model=os.getenv("DEPLOYMENT_NAME", "gpt-4o")
         )
         
-        # Extract and return the generated story
+        content = completion['content']
+        
+        # Analyze personalization quality based on actual patient data usage
+        personalization_analysis = self._analyze_personalization_quality(content, full_patient_context)
+        
+        logger.info(f"Personalization analysis: {personalization_analysis}")
+        
+        # Save enhanced debugging info
         with open("generated_stories/story_gen_response.txt", "w", encoding="utf-8") as f:
-            f.write("Prompt:\n" + str(messages))
-            f.write("\n\nCompletion:\n" + completion['content'])
-
-        return completion['content']
+            f.write("DEEPLY PERSONALIZED STORY GENERATION\n")
+            f.write("=" * 60 + "\n")
+            f.write(f"Full Patient Context Used:\n{full_patient_context}\n\n")
+            f.write(f"Personalization Analysis: {personalization_analysis}\n\n")
+            f.write("Enhanced Prompt:\n" + str(messages))
+            f.write("\n\nGenerated Story:\n" + content)
+        
+        return content
+    
+    def _analyze_personalization_quality(self, story: str, patient_data: str) -> str:
+        """Analyze how well the story uses actual patient data for personalization."""
+        analysis = []
+        
+        # Extract key info from patient data
+        patient_lower = patient_data.lower()
+        story_lower = story.lower()
+        
+        # Check for specific personal elements
+        import re
+        
+        # Names
+        names = re.findall(r'(?:שם|name)[:\s]*([א-ת\w]+)', patient_data, re.IGNORECASE)
+        if names and any(name.lower() in story_lower for name in names):
+            analysis.append("✓ השתמש בשם האישי")
+        
+        # Ages
+        ages = re.findall(r'(?:גיל|age|בן|בת)[:\s]*(\d+)', patient_data)
+        if ages and any(age in story for age in ages):
+            analysis.append("✓ התייחס לגיל")
+        
+        # Occupations
+        occupations = ['מורה', 'חייל', 'רופא', 'אחות', 'מהנדס', 'עורך דין', 'נהג', 'סטודנט', 'teacher', 'soldier', 'doctor', 'nurse', 'engineer', 'lawyer', 'driver', 'student']
+        found_occupations = [occ for occ in occupations if occ in patient_lower and occ in story_lower]
+        if found_occupations:
+            analysis.append(f"✓ שילב מקצוע: {found_occupations[0]}")
+        
+        # Specific triggers or situations mentioned
+        triggers = re.findall(r'(?:טריגר|trigger|פחד|fear)[:\s]*([א-ת\w\s]+)', patient_data, re.IGNORECASE)
+        trigger_matches = 0
+        for trigger_text in triggers:
+            trigger_words = trigger_text.split()[:3]  # Take first 3 words
+            if any(word.lower() in story_lower for word in trigger_words if len(word) > 2):
+                trigger_matches += 1
+        if trigger_matches > 0:
+            analysis.append(f"✓ שילב {trigger_matches} טריגרים ספציפיים")
+        
+        # Family or personal context
+        family_words = ['בן', 'בת', 'נשוי', 'רווק', 'משפחה', 'ילדים', 'married', 'single', 'family', 'children']
+        family_found = any(word in patient_lower and word in story_lower for word in family_words)
+        if family_found:
+            analysis.append("✓ התייחס למצב משפחתי/אישי")
+        
+        # Location or environmental details
+        locations = re.findall(r'(?:מגור|גר|עובד|city|work)[:\s]*([א-ת\w\s]+)', patient_data, re.IGNORECASE)
+        if locations and any(loc.lower() in story_lower for loc in locations):
+            analysis.append("✓ שילב פרטי מיקום/סביבה")
+        
+        if not analysis:
+            analysis.append("⚠ לא זוהו שימושים ברורים במידע האישי")
+        
+        return " | ".join(analysis)
 
 def summarize_story_llm(text: str) -> str:
     """Summarize a story using the LLM client (OpenAI/Ollama)."""

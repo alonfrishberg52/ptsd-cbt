@@ -27,8 +27,11 @@ import { WebView } from 'react-native-webview';
 const { width } = Dimensions.get('window');
 
 export default function SessionScreen({ route, navigation }) {
-  // Move ALL hooks to the top, before any return
-  const { patient, initialStory, initialStage, initialScenarioState } = route.params;
+  // Debug: log route params to help catch missing or malformed data
+  console.log('SessionScreen route.params:', route.params);
+
+  // Safely destructure with fallback
+  const { patient, initialStory, initialStage, initialScenarioState } = route.params || {};
   const [sessionState, setSessionState] = useState('initial');
   const [currentStage, setCurrentStage] = useState(initialStage || 1);
   const [story, setStory] = useState(initialStory || null);
@@ -52,7 +55,7 @@ export default function SessionScreen({ route, navigation }) {
   const [chaptersCompleted, setChaptersCompleted] = useState(0);
   const [hasSelectedSudForCurrentChapter, setHasSelectedSudForCurrentChapter] = useState(true);
   const [sudRequiredModalVisible, setSudRequiredModalVisible] = useState(false);
-  const { addCoins, unlockTrophy, trophies, TROPHY_DEFS, coins, BADGE_DEFS, badges, unlockBadge, avatar } = useSession();
+  const { addCoins, unlockTrophy, trophies, TROPHY_DEFS, coins, BADGE_DEFS, badges, unlockBadge, avatar, addSessionDate, getSessionStreak } = useSession();
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [newTrophy, setNewTrophy] = useState(null);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
@@ -64,6 +67,9 @@ export default function SessionScreen({ route, navigation }) {
   const [mediaError, setMediaError] = useState(null);
   // Add a ref to track if audio should auto-play
   const autoPlayAudioRef = useRef(false);
+  // Add state for selectedChoice
+  const [selectedChoice, setSelectedChoice] = useState(null);
+  const [choiceError, setChoiceError] = useState(null);
 
   // All useEffect hooks here
   useEffect(() => {
@@ -311,17 +317,21 @@ export default function SessionScreen({ route, navigation }) {
 
   // Continue to next chapter
   const handleNextChapter = async () => {
+    if (story && story.choices && story.choices.length > 0 && !selectedChoice) {
+      setChoiceError('יש לבחור אפשרות לפני המשך לפרק הבא.');
+      return;
+    }
+    setChoiceError(null);
     setLoading(true);
     try {
-      const response = await nextScenario(patient.patient_id, sudValue, scenarioState);
-      
+      const response = await nextScenario(patient.patient_id, sudValue, scenarioState, selectedChoice);
+      setSelectedChoice(null); // Reset for next chapter
       if (response.status === 'success') {
         setStory(response.result);
         const newStage = response.stage;
         setCurrentStage(newStage);
         setScenarioState(response.scenario_state);
         setChapterStories(prev => ({ ...prev, [newStage]: response.result }));
-        
         // Track completed chapters
         const newCompletedChapters = [...completedChapters];
         if (!newCompletedChapters.includes(currentStage)) {
@@ -332,8 +342,6 @@ export default function SessionScreen({ route, navigation }) {
         setSessionState('completed');
         const finalCompletedChapters = [...completedChapters, currentStage];
         setCompletedChapters(finalCompletedChapters);
-        
-        // Navigate to feedback with completion data
         navigateToFeedback();
       } else {
         Alert.alert('שגיאה', response.message || 'שגיאה במעבר לפרק הבא');
@@ -733,15 +741,14 @@ export default function SessionScreen({ route, navigation }) {
         </View>
 
         {/* Story content */}
-        {story && (
+        {story && story.story && (
           <View style={styles.storyContainer}>
             <Text style={[
-              styles.storyText, 
+              styles.storyText,
               { fontSize: getCurrentTextSize(), lineHeight: getCurrentTextSize() * 1.6 }
             ]}>
               {story.story}
             </Text>
-
             {/* --- Contextual Media Section --- */}
             <View style={styles.mediaSection}>
               {mediaLoading ? (
@@ -777,7 +784,7 @@ export default function SessionScreen({ route, navigation }) {
                   ) : (
                     <View style={styles.mediaVideoPlaceholder}>
                       <Text style={styles.mediaLabel}>[אין וידאו לסיפור]</Text>
-      </View>
+                    </View>
                   )}
                   {/* Audio */}
                   {media?.sound ? (
@@ -963,6 +970,36 @@ export default function SessionScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Story choices */}
+      {story && story.choices && story.choices.length > 0 && (
+        <View style={{ marginTop: 24, marginBottom: 12 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E40AF', marginBottom: 8, textAlign: 'center' }}>
+            מה תרצה לעשות הלאה?
+          </Text>
+          {story.choices.map((choice, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={{
+                backgroundColor: selectedChoice === choice ? '#2563EB' : '#E0E7EF',
+                borderRadius: 10,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                marginVertical: 6,
+                borderWidth: selectedChoice === choice ? 2 : 1,
+                borderColor: selectedChoice === choice ? '#1E40AF' : '#CBD5E1',
+              }}
+              onPress={() => {
+                setSelectedChoice(choice);
+                setChoiceError(null);
+              }}
+            >
+              <Text style={{ color: selectedChoice === choice ? '#fff' : '#1E293B', fontSize: 16, textAlign: 'center' }}>{choice}</Text>
+            </TouchableOpacity>
+          ))}
+          {choiceError && <Text style={{ color: 'red', marginTop: 8, textAlign: 'center' }}>{choiceError}</Text>}
+        </View>
+      )}
     </SafeAreaView>
   );
 }

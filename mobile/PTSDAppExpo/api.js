@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://10.100.102.3:5000';
+export const API_BASE_URL = 'http://10.100.102.9:5000';
 
 export async function fetchPatients() {
   console.log('[API] GET', `${API_BASE_URL}/api/patients`);
@@ -102,6 +102,10 @@ export async function fetchStory(storyId) {
   console.log('[API] GET', `${API_BASE_URL}/api/stories/${storyId}`);
   const res = await fetch(`${API_BASE_URL}/api/stories/${storyId}`);
   const data = await res.json();
+  // Normalize: always return { story: ... }
+  if (typeof data.story === 'string') {
+    return { story: data.story };
+  }
   return data.story;
 }
 export async function createStory(story) {
@@ -253,14 +257,15 @@ export async function startScenario(patientId, initialSud) {
   }
 }
 
-export async function nextScenario(patientId, currentSud, scenarioState) {
+export async function nextScenario(patientId, currentSud, scenarioState, selectedChoice = null) {
   const res = await fetch(`${API_BASE_URL}/api/next-scenario`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
       patient_id: patientId,
       current_sud: currentSud,
-      scenario_state: scenarioState
+      scenario_state: scenarioState,
+      selected_choice: selectedChoice
     }),
   });
   return res.json();

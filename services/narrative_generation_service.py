@@ -137,15 +137,16 @@ class StoryGenerationService:
             
             # Generate the story
             self.logger.debug("Generating therapeutic story...")
-            story = self._generate_story_content(exposure_stage, plan, previous_parts, rules)
+            story = self._generate_story_content(exposure_stage, plan, previous_parts, rules, patient_profile)
             
             # Validate and enhance story content
             self.logger.debug("Validating story content...")
-            feedback = self._validate_story_content(story)
+            story_text = story["story"] if isinstance(story, dict) else story
+            feedback = self._validate_story_content(story_text)
             
             # Generate enhanced TTS audio
             self.logger.debug("Generating TTS audio...")
-            audio_file = self._generate_audio(story, patient_profile)
+            audio_file = self._generate_audio(story_text, patient_profile)
             
             # Log performance metrics
             duration = time.time() - start_time
@@ -201,15 +202,14 @@ class StoryGenerationService:
             rules=rules
         )
     
-    def _generate_story_content(self, exposure_stage: int, plan: str, 
-                               previous_parts: Optional[List[str]], 
-                               rules: Optional[List[str]]) -> str:
-        """Generate the therapeutic story content"""
+    def _generate_story_content(self, exposure_stage: int, plan: str, previous_parts: Optional[List[str]], rules: Optional[List[str]], patient_profile: Dict[str, Any]) -> str:
+        patient_context = self.format_patient_context(patient_profile)
         return self.story_agent.generate_story(
             part=exposure_stage,
             plan=plan,
             previous_parts=previous_parts,
-            rules=rules
+            rules=rules,
+            patient_context=patient_context
         )
     
     def _validate_story_content(self, story: str) -> Dict[str, Any]:

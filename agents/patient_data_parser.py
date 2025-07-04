@@ -5,6 +5,9 @@ PTSDEvalTools.py - Tools for parsing PTSD patient data from Hebrew text.
 import re
 import json
 from typing import Dict, List, Optional, Set, Union
+from utils.logging_setup import get_logger
+
+logger = get_logger(__name__)
 
 class  PatientDataParser:
     """

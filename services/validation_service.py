@@ -3,11 +3,11 @@ Input validation service for PTSD therapy application
 Validates patient profiles, exposure stages, and other inputs
 """
 
-import logging
+from utils.logging_setup import get_logger
 from typing import Dict, Any, List, Optional, Union
 from config.app_config import ValidationConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class ValidationError(Exception):
     """Custom exception for validation errors"""

@@ -5,16 +5,37 @@ Configures structured logging with proper formatting and file rotation
 
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 from config.app_config import LoggingConfig
+import colorlog
+import structlog
 
-def setup_logging(log_level: str = None) -> None:
+def setup_structlog():
+    """
+    Set up structlog for structured (JSON) logging. Call this if you want JSON logs (e.g., for production).
+    """
+    structlog.configure(
+        processors=[
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.stdlib.add_log_level,
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.JSONRenderer()
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+def setup_logging(log_level: str = None, use_color: bool = True, use_json: bool = False) -> None:
     """
     Set up application-wide logging configuration
     
     Args:
         log_level: Override default log level from config
+        use_color: Use colored logs in console
+        use_json: Use JSON logs (structlog) in console
     """
     config = LoggingConfig()
     
@@ -31,9 +52,22 @@ def setup_logging(log_level: str = None) -> None:
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    simple_formatter = logging.Formatter(
-        '%(name)s - %(levelname)s - %(message)s'
-    )
+    if use_color:
+        color_formatter = colorlog.ColoredFormatter(
+            '%(log_color)s%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            log_colors={
+                'DEBUG':    'cyan',
+                'INFO':     'green',
+                'WARNING':  'yellow',
+                'ERROR':    'red',
+                'CRITICAL': 'bold_red',
+            },
+            secondary_log_colors={},
+            style='%'
+        )
+    else:
+        color_formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
     
     # Create handlers
     handlers = []
@@ -49,11 +83,20 @@ def setup_logging(log_level: str = None) -> None:
     file_handler.setLevel(logging.DEBUG)
     handlers.append(file_handler)
     
-    # Console handler for development
+    # Console handler (color or JSON)
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(simple_formatter)
-    console_handler.setLevel(getattr(logging, level.upper(), logging.INFO))
-    handlers.append(console_handler)
+    if use_json:
+        # Use structlog for JSON logs
+        setup_structlog()
+        import sys
+        json_handler = logging.StreamHandler(sys.stdout)
+        json_handler.setFormatter(logging.Formatter('%(message)s'))
+        json_handler.setLevel(getattr(logging, level.upper(), logging.INFO))
+        handlers.append(json_handler)
+    else:
+        console_handler.setFormatter(color_formatter)
+        console_handler.setLevel(getattr(logging, level.upper(), logging.INFO))
+        handlers.append(console_handler)
     
     # Configure root logger
     logging.basicConfig(
@@ -72,6 +115,10 @@ def setup_logging(log_level: str = None) -> None:
     app_logger.info("Logging system initialized")
     app_logger.info(f"Log level: {level}")
     app_logger.info(f"Log file: {config.LOG_FILE}")
+    if use_color:
+        app_logger.info("Colored console logging enabled")
+    if use_json:
+        app_logger.info("JSON/structured logging enabled (structlog)")
 
 def get_logger(name: str) -> logging.Logger:
     """

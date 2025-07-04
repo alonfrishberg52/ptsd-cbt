@@ -152,28 +152,29 @@ export default function WelcomeScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // Search for patient by name
       const patients = await fetchPatients();
-      const foundPatient = patients.find(p => 
-        p.name && p.name.toLowerCase().includes(nameInput.trim().toLowerCase())
+      const normalizedInput = nameInput.trim().replace(/\s+/g, ' ').toLowerCase();
+      const foundPatient = patients.find(p =>
+        p.name && p.name.trim().replace(/\s+/g, ' ').toLowerCase() === normalizedInput
       );
 
       if (foundPatient) {
-        // User found - save to storage and set state
         const userData = {
           name: foundPatient.name,
           patient_id: foundPatient.patient_id,
           loginTime: new Date().toISOString()
         };
-        
         await AsyncStorage.setItem('currentUser', JSON.stringify(userData));
         setCurrentUser(userData);
         setUserName(foundPatient.name);
         setIsLoggedIn(true);
         setNameInput('');
+        setLoading(false);
+        navigation.navigate('PreSession', { patient: userData });
+        return;
       } else {
         Alert.alert(
-          'משתמש לא נמצא', 
+          'משתמש לא נמצא',
           `לא נמצא מטופל בשם "${nameInput.trim()}". אנא ודא שהשם נכון או פנה למטפל שלך.`,
           [{ text: 'אישור', style: 'default' }]
         );
@@ -445,6 +446,45 @@ export default function WelcomeScreen({ navigation }) {
   }
 
   // Main welcome screen content
+  if (!showSudInput && !initialLoading) {
+    return (
+      <SafeAreaView style={styles.figmaGradient}>
+        <View style={styles.figmaLogoContainer}>
+          <Image
+            source={require('../assets/logo.png')}
+            style={styles.figmaLogo}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={styles.figmaHeadline}>NarraTIVE</Text>
+        <Text style={styles.figmaTagline}>ליווי אישי וסיפורים מותאמים להתמודדות עם פוסט טראומה</Text>
+        <View style={styles.figmaCard}>
+          <Text style={styles.figmaCardTitle}>כניסה</Text>
+          <Text style={styles.figmaCardSubtitle}>נא הזן את שמך המלא כדי להתחבר:</Text>
+          <TextInput
+            style={styles.figmaInput}
+            placeholder="הזן את שמך"
+            placeholderTextColor="#A0AEC0"
+            value={nameInput}
+            onChangeText={setNameInput}
+            autoCapitalize="words"
+            textAlign="right"
+          />
+          <TouchableOpacity
+            style={styles.figmaButton}
+            onPress={handleNameSubmit}
+            disabled={loading}
+          >
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={styles.figmaButtonText}>{loading ? 'טוען...' : 'התחבר'}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Main welcome screen content
     return (
       <SafeAreaView style={styles.container}>
       {navigation.canGoBack && navigation.canGoBack() && <ReturnButton navigation={navigation} />}
@@ -473,12 +513,9 @@ export default function WelcomeScreen({ navigation }) {
             <View style={styles.logoAccent} />
           </Animated.View>
           <Text style={styles.tagline}>
-            בואו נתמודד יחד. בבטחה.
+            ליווי אישי וסיפורים מותאמים להתמודדות עם פוסט טראומה.{'\n'}
           </Text>
-          <Text style={styles.subtitle}>
-            האפליקציה שמלווה אותך בדרך להתמודדות עם פוסט טראומה,{'\n'}
-            עם סיפורים מותאמים אישית ותרגילים טיפוליים.
-          </Text>
+         
         </View>
 
         {/* Login/Welcome Section */}
@@ -554,98 +591,85 @@ export default function WelcomeScreen({ navigation }) {
               </View>
           </View>
 
-          {/* Avatar Preview */}
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-            <View style={{ alignItems: 'center' }}>
-              {/* Face (skin) */}
-                <View style={{ width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 4, backgroundColor: '#fff', borderWidth: 3, borderColor: '#3B82F6' }}>
-                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: getSkinColor(avatar?.skin), alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+          {/* Enhanced Avatar Section */}
+          <View style={styles.enhancedAvatarContainer}>
+            <View style={styles.avatarGlowContainer}>
+              <View style={styles.avatarRings}>
+                <View style={styles.avatarOuterRing} />
+                <View style={styles.avatarInnerRing} />
+              </View>
+              <View style={styles.avatarCircle}>
+                <View style={styles.avatarFace}>
                   {/* Eyes */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, marginHorizontal: 3, backgroundColor: getEyeColor(avatar?.eyes), borderWidth: 1, borderColor: '#222' }} />
-                      <View style={{ width: 8, height: 8, borderRadius: 4, marginHorizontal: 3, backgroundColor: getEyeColor(avatar?.eyes), borderWidth: 1, borderColor: '#222' }} />
+                  <View style={styles.avatarEyesContainer}>
+                    <View style={[styles.avatarEye, { backgroundColor: getEyeColor(avatar?.eyes) }]} />
+                    <View style={[styles.avatarEye, { backgroundColor: getEyeColor(avatar?.eyes) }]} />
                   </View>
                   {/* Hair */}
-                    <View style={{ position: 'absolute', top: 0, left: 8, right: 8, height: 16, borderTopLeftRadius: 10, borderTopRightRadius: 10, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: getHairColor(avatar?.hair), zIndex: 2 }} />
+                  <View style={[styles.avatarHair, { backgroundColor: getHairColor(avatar?.hair) }]} />
                 </View>
               </View>
               {/* Shirt */}
-                <View style={{ width: 36, height: 16, borderRadius: 8, backgroundColor: getShirtColor(avatar?.shirt), marginTop: -6 }} />
+              <View style={[styles.avatarShirt, { backgroundColor: getShirtColor(avatar?.shirt) }]} />
             </View>
-            </View>
+          </View>
 
-            <View style={styles.quickStats}>
-              <Text style={styles.quickStatsTitle}>התקדמות שלך:</Text>
-              <Text style={styles.quickStatsSubtitle}>
-                {`הרווחת ${coins} מטבעות ופתחת ${trophies.length} תגים`}
-              </Text>
+          {/* Enhanced Stats Section */}
+          <View style={styles.enhancedStatsContainer}>
+            <View style={styles.statsCard}>
+              <Text style={styles.statsIcon}>🌟</Text>
+              <Text style={styles.statsTitle}>ההישגים שלך</Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{coins}</Text>
+                  <Text style={styles.statLabel}>מטבעות</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{trophies.length}</Text>
+                  <Text style={styles.statLabel}>תגים</Text>
+                </View>
+              </View>
               <TouchableOpacity 
-                style={{marginTop: 15, padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10}}
+                style={styles.viewTrophiesButton}
                 onPress={() => setShowTrophyModal(true)}
               >
-                <Text style={{color: '#fff', fontSize: 14, fontWeight: '600'}}>הצג את התגים שלי</Text>
+                <Text style={styles.viewTrophiesText}>🏆 הצג תגים</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Motivational Message */}
+          <View style={styles.motivationalContainer}>
+            <Text style={styles.motivationalEmoji}>💙</Text>
+            <Text style={styles.motivationalText}>
+              זה הזמן לצעד קדימה.{'\n'}
+              אתה מוכן למסע הבא?
+            </Text>
+          </View>
+
+          {/* Enhanced Main Action Button */}
+          <View style={styles.mainActionContainer}>
+            <TouchableOpacity 
+              style={styles.enhancedContinueButton}
+              onPress={handleContinueToPreSession}
+              activeOpacity={0.8}
+            >
+              <View style={styles.buttonGlow} />
+              <View style={styles.buttonContent}>
+                <View style={styles.buttonIcon}>
+                  <Text style={styles.buttonIconText}>🚀</Text>
+                </View>
+                <Text style={styles.enhancedContinueButtonText}>התחל מפגש חדש</Text>
+                <View style={styles.buttonArrow}>
+                  <Text style={styles.buttonArrowText}>→</Text>
+                </View>
               </View>
-
-            {/* Buttons for actions */}
-          <TouchableOpacity 
-            style={styles.continueButton}
-            onPress={handleContinueToPreSession}
-          >
-              <Text style={styles.continueButtonText}>התחל מפגש חדש</Text>
-            <Text style={styles.continueButtonArrow}>→</Text>
-          </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.continueButton, {backgroundColor: '#60A5FA', shadowColor: '#60A5FA'}]}
-              onPress={() => nav.navigate('Dashboard', {patient: currentUser})}
-            >
-              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>לוח מחוונים</Text>
-              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
             </TouchableOpacity>
+            <Text style={styles.buttonSubtext}>המסע שלך לריפוי מתחיל כאן</Text>
+          </View>
 
-            <TouchableOpacity
-              style={[styles.continueButton, {backgroundColor: '#10B981', shadowColor: '#10B981'}]}
-              onPress={() => nav.navigate('EncouragementWall', {patient: currentUser})}
-            >
-              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>קיר עידוד</Text>
-              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
-            </TouchableOpacity>
 
-          <TouchableOpacity
-              style={[styles.continueButton, {backgroundColor: '#EF4444', shadowColor: '#EF4444'}]}
-              onPress={() => nav.navigate('AuditLog', {patient: currentUser})}
-          >
-              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>יומן פעילות</Text>
-              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
-          </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.continueButton, {backgroundColor: '#8B5CF6', shadowColor: '#8B5CF6'}]}
-              onPress={() => nav.navigate('PatientProfile', {patient: currentUser})}
-            >
-              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>פרופיל מטופל</Text>
-              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.continueButton, {backgroundColor: '#F97316', shadowColor: '#F97316'}]}
-              onPress={() => nav.navigate('Research', {patient: currentUser})}
-            >
-              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>מחקר</Text>
-              <Text style={[styles.continueButtonArrow, {color: '#FFFFFF'}]}>→ </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.continueButton, {backgroundColor: '#6B7280', shadowColor: '#6B7280'}]}
-              onPress={handleLogout}
-            >
-              <Text style={[styles.continueButtonText, {color: '#FFFFFF'}]}>התנתק</Text>
-              <Text style={[
-                styles.continueButtonArrow,
-                { color: '#FFFFFF' },
-              ]}>→ </Text>
-            </TouchableOpacity>
 
         <Modal visible={showTrophyModal} transparent animationType="fade">
               <View style={styles.modalOverlay}>
@@ -717,7 +741,9 @@ export default function WelcomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1E40AF',
+    backgroundColor: '#E3F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gradientBackground: {
     position: 'absolute',
@@ -734,16 +760,16 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   heroSection: {
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 24,
+    marginTop: 16,
+    marginBottom: 16,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   logoMain: {
     fontSize: 34,
@@ -760,18 +786,20 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 18,
+    color: '#1E293B',
     fontWeight: '600',
-    color: '#DBEAFE',
     textAlign: 'center',
     marginBottom: 8,
+    marginTop: 8,
+    letterSpacing: 0.2,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#BFDBFE',
+    fontSize: 14,
+    color: '#2563EB',
     textAlign: 'center',
-    lineHeight: 18,
-    opacity: 0.9,
+    marginBottom: 16,
+    fontWeight: '400',
   },
   featuresGrid: {
     flexDirection: 'row',
@@ -882,7 +910,7 @@ const styles = StyleSheet.create({
   userHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   logoutButton: {
     padding: 8,
@@ -1479,6 +1507,358 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 13,
+  },
+  
+  // Enhanced Avatar Styles
+  enhancedAvatarContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  avatarGlowContainer: {
+    position: 'relative',
+    alignItems: 'center',
+  },
+  avatarRings: {
+    position: 'absolute',
+    top: -5,
+    left: -5,
+    right: -5,
+    bottom: -5,
+  },
+  avatarOuterRing: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    top: 0,
+    left: 0,
+  },
+  avatarInnerRing: {
+    position: 'absolute',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.6)',
+    top: 3,
+    left: 3,
+  },
+  avatarCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#60A5FA',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  avatarFace: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  avatarEyesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  avatarEye: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    marginHorizontal: 2,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  avatarHair: {
+    position: 'absolute',
+    top: 0,
+    left: 6,
+    right: 6,
+    height: 14,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    zIndex: 2,
+  },
+  avatarShirt: {
+    width: 32,
+    height: 14,
+    borderRadius: 8,
+    marginTop: -6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+
+  // Enhanced Stats Styles
+  enhancedStatsContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    minWidth: width * 0.75,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statsIcon: {
+    fontSize: 18,
+    marginBottom: 6,
+  },
+  statsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#60A5FA',
+    marginBottom: 3,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#DBEAFE',
+    fontWeight: '600',
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginHorizontal: 16,
+  },
+  viewTrophiesButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  viewTrophiesText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
+  // Motivational Message Styles
+  motivationalContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  motivationalEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  motivationalText: {
+    fontSize: 14,
+    color: '#DBEAFE',
+    textAlign: 'center',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+
+  // Enhanced Button Styles
+  mainActionContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  enhancedContinueButton: {
+    backgroundColor: '#2563EB',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    minWidth: width * 0.8,
+    elevation: 0,
+    borderWidth: 0,
+  },
+  buttonGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 14,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  buttonIconText: {
+    fontSize: 14,
+  },
+  enhancedContinueButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  buttonArrow: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  buttonArrowText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  buttonSubtext: {
+    fontSize: 11,
+    color: '#BFDBFE',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  figmaGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5EA',
+  },
+  figmaContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  figmaLogoContainer: {
+    marginTop: 40,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  figmaLogo: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#E3F0FF',
+    marginBottom: 8,
+  },
+  figmaHeadline: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    textAlign: 'center',
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  figmaTagline: {
+    fontSize: 16,
+    color: '#2563EB',
+    textAlign: 'center',
+    marginBottom: 32,
+    fontWeight: '500',
+  },
+  figmaCard: {
+    width: '88%',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  figmaCardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  figmaCardSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  figmaInput: {
+    width: '100%',
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BFD7ED',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#1E293B',
+    marginBottom: 18,
+    textAlign: 'right',
+  },
+  figmaButton: {
+    width: 193,
+    height: 52,
+    borderRadius: 80,
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 29,
+    paddingVertical: 15,
+    marginTop: 16,
+    alignSelf: 'center',
+  },
+  figmaButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
   },
 });
 

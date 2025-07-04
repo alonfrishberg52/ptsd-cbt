@@ -1,0 +1,452 @@
+{% extends 'dashboard/base_enhanced.html' %}
+
+{% block title %}מערכת משוב טיפולי{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/dashboard/css/feedback-dashboard.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+    <!-- Header Section -->
+    <header class="page-header">
+        <div class="header-content">
+            <div class="header-left">
+                <div class="header-icon">
+                    <i class="bi bi-chat-heart"></i>
+                </div>
+                <div class="header-text">
+                    <h1>מערכת משוב טיפולי</h1>
+                    <p>ניתוח ומעקב אחר התקדמות המטופלים</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="session-counter">
+                    <span class="counter-number">{{ total_sessions }}</span>
+                    <span class="counter-label">סשנים כולל</span>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- Content Area -->
+    <div class="content-area">
+        <!-- Statistics Overview -->
+        <section class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card stat-helpfulness">
+                    <div class="stat-icon">
+                        <i class="bi bi-star-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">{{ avg_helpfulness }}<span class="stat-max">/5</span></div>
+                        <div class="stat-label">ממוצע שימושיות</div>
+                        <div class="stat-progress">
+                            <div class="progress-bar" style="width: {{ (avg_helpfulness / 5) * 100 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card stat-comfort">
+                    <div class="stat-icon">
+                        <i class="bi bi-heart-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">{{ avg_comfort }}<span class="stat-max">/5</span></div>
+                        <div class="stat-label">ממוצע נוחות</div>
+                        <div class="stat-progress">
+                            <div class="progress-bar" style="width: {{ (avg_comfort / 5) * 100 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card stat-difficulty">
+                    <div class="stat-icon">
+                        <i class="bi bi-speedometer2"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">{{ avg_difficulty }}<span class="stat-max">/5</span></div>
+                        <div class="stat-label">ממוצע קושי</div>
+                        <div class="stat-progress">
+                            <div class="progress-bar" style="width: {{ (avg_difficulty / 5) * 100 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card stat-improvement">
+                    <div class="stat-icon">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">{{ avg_improvement }}<span class="stat-max">/5</span></div>
+                        <div class="stat-label">ממוצע שיפור</div>
+                        <div class="stat-progress">
+                            <div class="progress-bar" style="width: {{ (avg_improvement / 5) * 100 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Patient Summary -->
+        <section class="patients-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="bi bi-people-fill"></i>
+                    <h2>סיכום מטופלים</h2>
+                </div>
+            </div>
+            <div class="patients-grid">
+                {% for patient_id, data in patient_feedback.items() %}
+                <div class="patient-card" onclick="showPatientDetails('{{ patient_id }}')">
+                    <div class="patient-header">
+                        <div class="patient-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="patient-info">
+                            <h3 class="patient-name">{{ data.patient_name }}</h3>
+                            <div class="patient-meta">
+                                <span class="session-count">{{ data.total_sessions }} סשנים</span>
+                                {% if data.last_session %}
+                                    <span class="last-session">{{ data.last_session.strftime('%d/%m/%Y') }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="patient-metrics">
+                        <div class="metric">
+                            <div class="metric-label">SUD ממוצע</div>
+                            <div class="metric-value sud-score-{{ 'low' if data.avg_final_sud <= 30 else 'medium' if data.avg_final_sud <= 60 else 'high' }}">
+                                {{ "%.1f"|format(data.avg_final_sud) }}
+                            </div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">שימושיות</div>
+                            <div class="metric-value">
+                                <div class="stars">
+                                    {% for i in range(1, 6) %}
+                                        <i class="bi bi-star{% if i <= data.avg_helpfulness %}-fill{% endif %}"></i>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="patient-actions">
+                        <button class="view-details-btn">
+                            <i class="bi bi-eye"></i>
+                            צפה בפרטים
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        <!-- Recent Feedback -->
+        <section class="feedback-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="bi bi-chat-dots-fill"></i>
+                    <h2>משוב אחרון</h2>
+                </div>
+                <div class="section-actions">
+                    <button class="action-btn export-btn" onclick="exportFeedbackData()">
+                        <i class="bi bi-download"></i>
+                        <span>ייצוא</span>
+                    </button>
+                    <button class="action-btn filter-btn" onclick="filterFeedback()">
+                        <i class="bi bi-funnel"></i>
+                        <span>סינון</span>
+                    </button>
+                </div>
+            </div>
+            <div class="feedback-container">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="feedbackTable">
+                        <thead>
+                            <tr>
+                                <th>תאריך</th>
+                                <th>מטופל</th>
+                                <th>סוג סשן</th>
+                                <th>משך (דקות)</th>
+                                <th>SUD סיום</th>
+                                <th>שימושיות</th>
+                                <th>נוחות</th>
+                                <th>קושי</th>
+                                <th>שיפור</th>
+                                <th>המלצה</th>
+                                <th>פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for feedback in all_feedback %}
+                            <tr>
+                                <td>
+                                    <small>{{ feedback.created_at.strftime('%d/%m/%Y %H:%M') if feedback.created_at else 'אין נתונים' }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ feedback.patient_display_name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ feedback.session_type or 'לא מוגדר' }}</span>
+                                </td>
+                                <td>
+                                    {{ feedback.session_duration_minutes or 0 }}
+                                </td>
+                                <td>
+                                    <span class="badge {% if feedback.final_sud <= 30 %}bg-success{% elif feedback.final_sud <= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ feedback.final_sud or 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% for i in range(1, 6) %}
+                                            <i class="bi bi-star{% if i <= (feedback.helpfulness_rating or 0) %}-fill text-warning{% endif %}"></i>
+                                        {% endfor %}
+                                        <small class="ms-1">({{ feedback.helpfulness_rating or 0 }})</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% for i in range(1, 6) %}
+                                            <i class="bi bi-star{% if i <= (feedback.comfort_rating or 0) %}-fill text-success{% endif %}"></i>
+                                        {% endfor %}
+                                        <small class="ms-1">({{ feedback.comfort_rating or 0 }})</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% for i in range(1, 6) %}
+                                            <i class="bi bi-star{% if i <= (feedback.difficulty_rating or 0) %}-fill text-info{% endif %}"></i>
+                                        {% endfor %}
+                                        <small class="ms-1">({{ feedback.difficulty_rating or 0 }})</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% for i in range(1, 6) %}
+                                            <i class="bi bi-star{% if i <= (feedback.improvement_rating or 0) %}-fill text-primary{% endif %}"></i>
+                                        {% endfor %}
+                                        <small class="ms-1">({{ feedback.improvement_rating or 0 }})</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if feedback.would_recommend == 'yes' %}
+                                        <i class="bi bi-check-circle-fill text-success"></i> כן
+                                    {% elif feedback.would_recommend == 'no' %}
+                                        <i class="bi bi-x-circle-fill text-danger"></i> לא
+                                    {% else %}
+                                        <span class="text-muted">לא מוגדר</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewFeedbackDetails('{{ feedback._id }}')">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Feedback Details Modal -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">פרטי משוב</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="feedbackModalBody">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Patient Details Modal -->
+    <div class="modal fade" id="patientModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">פרטי מטופל</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="patientModalBody">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Store feedback data for JavaScript access
+    const feedbackData = {{ all_feedback|tojson }};
+    const patientData = {{ patient_feedback|tojson }};
+
+    function viewFeedbackDetails(feedbackId) {
+        const feedback = feedbackData.find(f => f._id === feedbackId);
+        if (!feedback) return;
+        
+        const modalBody = document.getElementById('feedbackModalBody');
+        modalBody.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>פרטי סשן</h6>
+                    <p><strong>מטופל:</strong> ${feedback.patient_display_name}</p>
+                    <p><strong>סוג סשן:</strong> ${feedback.session_type || 'לא מוגדר'}</p>
+                    <p><strong>תאריך:</strong> ${feedback.session_date || 'לא מוגדר'}</p>
+                    <p><strong>זמן התחלה:</strong> ${feedback.start_time || 'לא מוגדר'}</p>
+                    <p><strong>זמן סיום:</strong> ${feedback.end_time || 'לא מוגדר'}</p>
+                    <p><strong>משך הסשן:</strong> ${feedback.session_duration_minutes || 0} דקות</p>
+                    <p><strong>פרקים שהושלמו:</strong> ${feedback.chapters_completed || 0}</p>
+                    <p><strong>SUD סיום:</strong> ${feedback.final_sud || 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>דירוגים</h6>
+                    <p><strong>שימושיות:</strong> ${feedback.helpfulness_rating || 0}/5</p>
+                    <p><strong>נוחות:</strong> ${feedback.comfort_rating || 0}/5</p>
+                    <p><strong>קושי:</strong> ${feedback.difficulty_rating || 0}/5</p>
+                    <p><strong>שיפור:</strong> ${feedback.improvement_rating || 0}/5</p>
+                    <p><strong>ימליץ לאחרים:</strong> ${feedback.would_recommend === 'yes' ? 'כן' : feedback.would_recommend === 'no' ? 'לא' : 'לא מוגדר'}</p>
+                </div>
+            </div>
+            ${feedback.comments ? `
+                <div class="mt-3">
+                    <h6>הערות נוספות</h6>
+                    <div class="bg-light p-3 rounded">
+                        ${feedback.comments}
+                    </div>
+                </div>
+            ` : ''}
+        `;
+        
+        new bootstrap.Modal(document.getElementById('feedbackModal')).show();
+    }
+
+    function showPatientDetails(patientId) {
+        const patient = patientData[patientId];
+        if (!patient) return;
+        
+        const modalBody = document.getElementById('patientModalBody');
+        
+        let sessionsHTML = '';
+        patient.sessions.forEach(session => {
+            sessionsHTML += `
+                <tr>
+                    <td>${session.created_at ? new Date(session.created_at).toLocaleDateString('he-IL') : 'N/A'}</td>
+                    <td><span class="badge bg-secondary">${session.session_type || 'לא מוגדר'}</span></td>
+                    <td>${session.session_duration_minutes || 0} דקות</td>
+                    <td><span class="badge ${session.final_sud <= 30 ? 'bg-success' : session.final_sud <= 60 ? 'bg-warning' : 'bg-danger'}">${session.final_sud || 'N/A'}</span></td>
+                    <td>${session.helpfulness_rating || 0}/5</td>
+                    <td>${session.comfort_rating || 0}/5</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-info" onclick="viewFeedbackDetails('${session._id}')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        modalBody.innerHTML = `
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>סה"כ סשנים</h5>
+                            <h3 class="text-primary">${patient.total_sessions}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>ממוצע SUD</h5>
+                            <h3 class="text-info">${patient.avg_final_sud.toFixed(1)}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>ממוצע שימושיות</h5>
+                            <h3 class="text-success">${patient.avg_helpfulness.toFixed(1)}/5</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>סשן אחרון</h5>
+                            <p class="text-muted">${patient.last_session ? new Date(patient.last_session).toLocaleDateString('he-IL') : 'אין נתונים'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h6>היסטוריית סשנים</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>תאריך</th>
+                            <th>סוג</th>
+                            <th>משך</th>
+                            <th>SUD סיום</th>
+                            <th>שימושיות</th>
+                            <th>נוחות</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sessionsHTML}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        new bootstrap.Modal(document.getElementById('patientModal')).show();
+    }
+
+    function exportFeedbackData() {
+        // Create CSV content
+        const headers = ['תאריך', 'מטופל', 'סוג סשן', 'משך דקות', 'SUD סיום', 'שימושיות', 'נוחות', 'קושי', 'שיפור', 'המלצה', 'הערות'];
+        const csvContent = [
+            headers.join(','),
+            ...feedbackData.map(feedback => [
+                feedback.created_at ? new Date(feedback.created_at).toLocaleDateString('he-IL') : '',
+                feedback.patient_display_name,
+                feedback.session_type || '',
+                feedback.session_duration_minutes || 0,
+                feedback.final_sud || '',
+                feedback.helpfulness_rating || 0,
+                feedback.comfort_rating || 0,
+                feedback.difficulty_rating || 0,
+                feedback.improvement_rating || 0,
+                feedback.would_recommend || '',
+                (feedback.comments || '').replace(/,/g, ';')
+            ].join(','))
+        ].join('\\n');
+        
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `feedback_export_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    }
+
+    function filterFeedback() {
+        // Simple filter implementation
+        const searchTerm = prompt('הכנס שם מטופל או סוג סשן לחיפוש:');
+        if (!searchTerm) return;
+        
+        const table = document.getElementById('feedbackTable');
+        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+        
+        for (let row of rows) {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm.toLowerCase()) ? '' : 'none';
+        }
+    }
+    </script>
+{% endblock %}

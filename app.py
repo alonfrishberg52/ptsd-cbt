@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, jsonify, send_file, session, 
 from flask_pymongo import PyMongo
 from datetime import datetime, timedelta
 import os
-from agents.ptsd_treatment_agents import OrchestratorAgent, summarize_story_llm, client as llm_client
+from agents.ptsd_treatment_agents import OrchestratorAgent, summarize_story_llm
 from agents.patient_data_parser import PatientDataParser
 from services.exposure_therapy_service import ExposureProgressionService
 from services.exposure_plan_service import ExposurePlanService
@@ -23,6 +23,10 @@ from utils.research_search_client import (
 from utils.data_normalization import normalize_patient_data
 from dataclasses import asdict, is_dataclass
 import json
+from utils.logging_setup import setup_logging
+from services.feedback import FeedbackService
+
+setup_logging(use_color=True, use_json=False)
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
@@ -50,6 +54,15 @@ def log_audit(action_type, patient_name, details=None):
         'timestamp': datetime.utcnow(),
         'details': details or ''
     })
+
+def convert_objectid(obj):
+    if isinstance(obj, list):
+        return [convert_objectid(item) for item in obj]
+    if isinstance(obj, dict):
+        return {k: convert_objectid(v) for k, v in obj.items()}
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    return obj
 
 @app.route('/')
 def root():
@@ -241,7 +254,7 @@ def next_scenario():
 def api_stories():
     if request.method == 'GET':
         stories = list(mongo.db.stories.find({}, {'_id': 0}))
-        return jsonify({'status': 'success', 'stories': stories})
+        return jsonify({'status': 'success', 'stories': convert_objectid(stories)})
     elif request.method == 'POST':
         try:
             story_data = request.json
@@ -289,11 +302,11 @@ def api_stories():
                         last_sud=5,  # Default SUD value
                         previous_parts=None
                     )
-                    
                     story_data['result'] = result
                     # Create summary from generated story
-                    if result and result.get('story'):
-                        story_words = result['story'].split()
+                    story_text = result['story'] if isinstance(result, dict) and 'story' in result else result
+                    if story_text:
+                        story_words = story_text.split()
                         story_data['summary'] = ' '.join(story_words[:30]) + ('...' if len(story_words) > 30 else '')
                     
                 except Exception as e:
@@ -331,7 +344,7 @@ def get_stories():
             s['short_id'] = s['story_id'][-6:]
             # Recursively convert ObjectIds in all nested fields
             for key in s:
-                s[key] = convert_objectids(s[key])
+                s[key] = convert_objectid(s[key])
             # Ensure summary exists
             story_text = s.get('result', {}).get('story', '')
             if 'summary' not in s or not s.get('summary'):
@@ -342,7 +355,7 @@ def get_stories():
                     s[fb_key] = ''
         return jsonify({
             'status': 'success',
-            'stories': stories
+            'stories': convert_objectid(stories)
         })
     except Exception as e:
         return jsonify({
@@ -353,83 +366,7 @@ def get_stories():
 @app.route('/dashboard/patients')
 def dashboard_patients():
     patients = list(mongo.db.patients.find({}, {'_id': 0}))
-    return render_template('dashboard/patient_list.html', patients=patients)
-
-@app.route('/dashboard/plans')
-def dashboard_plans():
-    return render_template('dashboard/plan_review.html')
-
-@app.route('/dashboard/patients/create', methods=['GET', 'POST'])
-def create_patient():
-    if request.method == 'POST':
-        data = {
-            'first_name': request.form.get('first_name'),
-            'last_name': request.form.get('last_name'),
-            'gender': request.form.get('gender'),
-            'birthdate': request.form.get('birthdate'),
-            'age': request.form.get('age'),
-            'city': request.form.get('city'),
-            'street': request.form.get('street'),
-            'house_number': request.form.get('house_number'),
-            'education': request.form.get('education'),
-            'occupation': request.form.get('occupation'),
-            'hobbies': request.form.getlist('hobbies'),
-            'pet': request.form.get('pet'),
-            'general_info': request.form.get('general_info', ''),
-        }
-        # PTSD symptoms (comma separated)
-        data['ptsd_symptoms'] = [s.strip() for s in data['ptsd_symptoms']]
-        # General symptoms (ratings)
-        general_symptoms = {}
-        for key, label in [
-            ('intrusion', 'דחיקות'),
-            ('arousal', 'ערנות'),
-            ('thoughts', 'מחשבות טורדניות'),
-            ('avoidance', 'הימנעויות'),
-            ('mood', 'שינוי מצב רוח')
-        ]:
-            val = request.form.get(f'general_symptoms_{key}')
-            if val:
-                general_symptoms[key] = int(val)
-        data['general_symptoms'] = general_symptoms
-        # Main avoidances (comma separated)
-        data['main_avoidances'] = [s.strip() for s in data['main_avoidances']]
-        # Triggers (list of {name, SUD 0-100})
-        data['triggers'] = [
-            {'name': t, 'sud': int(s) if s else None}
-            for t, s in zip(data['triggers'], data['triggers_sud']) if t.strip()
-        ]
-        # Avoidance situations (list of {name, SUD 0-100})
-        data['avoidances'] = [
-            {'name': a, 'sud': int(s) if s else None}
-            for a, s in zip(data['avoidances'], data['avoidances_sud']) if a.strip()
-        ]
-        # Somatic symptoms (by category)
-        somatic = {}
-        for key in request.form:
-            if key.startswith('somatic['):
-                cat = key.split('[')[1].split(']')[0]
-                somatic[cat] = request.form.getlist(key)
-        data['somatic'] = somatic
-        # PCL-5 (20 items, 0-4)
-        pcl5 = [int(request.form.get(f'pcl5_{i}', 0)) for i in range(1, 21)]
-        data['pcl5'] = pcl5
-        # Depression (PHQ-9, 9 items, 0-3)
-        phq9 = [int(request.form.get(f'phq9_{i}', 0)) for i in range(1, 10)]
-        data['phq9'] = phq9
-        # Generate a unique patient_id
-        data['patient_id'] = str(uuid.uuid4())
-        # Add a 'name' field for display
-        data['name'] = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
-        # Normalize data before parsing/saving
-        data = normalize_patient_data(data)
-        parser = PatientDataParser()
-        parsed_data = parser.parse(data)
-        mongo.db.patients.insert_one(parsed_data)
-        log_audit('add_patient', data['name'])
-        flash('נוצר מטופל חדש בהצלחה!', 'success')
-        return redirect(url_for('dashboard_patients'))
-    return render_template('dashboard/patient_create.html')
+    return render_template('dashboard/patient_list.html', patients=convert_objectid(patients))
 
 @app.route('/dashboard/patients/<patient_id>')
 def patient_profile(patient_id):
@@ -437,7 +374,7 @@ def patient_profile(patient_id):
     if not patient:
         flash('מטופל לא נמצא', 'danger')
         return redirect(url_for('dashboard_patients'))
-    return render_template('dashboard/patient_profile.html', patient=patient)
+    return render_template('dashboard/patient_profile.html', patient=convert_objectid(patient))
 
 @app.route('/dashboard/patients/<patient_id>/edit', methods=['GET', 'POST'])
 def edit_patient(patient_id):
@@ -507,17 +444,7 @@ def edit_patient(patient_id):
         mongo.db.patients.update_one({'patient_id': patient_id}, {'$set': update})
         flash('פרטי המטופל עודכנו בהצלחה!', 'success')
         return redirect(url_for('dashboard_patients'))
-    return render_template('dashboard/patient_create.html', patient=patient, edit_mode=True)
-
-def convert_objectids(obj):
-    if isinstance(obj, list):
-        return [convert_objectids(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {k: convert_objectids(v) for k, v in obj.items()}
-    elif isinstance(obj, ObjectId):
-        return str(obj)
-    else:
-        return obj
+    return render_template('dashboard/patient_create.html', patient=convert_objectid(patient), edit_mode=True)
 
 @app.route('/dashboard/stories')
 def dashboard_stories():
@@ -527,7 +454,7 @@ def dashboard_stories():
         s['short_id'] = s['story_id'][-6:]
         # Recursively convert ObjectIds in all nested fields
         for key in s:
-            s[key] = convert_objectids(s[key])
+            s[key] = convert_objectid(s[key])
         # Ensure summary exists
         story_text = s.get('result', {}).get('story', '')
         if 'summary' not in s or not s.get('summary'):
@@ -536,145 +463,69 @@ def dashboard_stories():
         for fb_key in ['habituation_feedback', 'narrative_feedback', 'dialogue_feedback', 'rule_feedback', 'hebrew_feedback']:
             if fb_key not in s:
                 s[fb_key] = ''
-    patients = list(mongo.db.patients.find({}, {'_id': 0, 'patient_id': 1, 'name': 1}))
-    # Determine next actionable chapter for each patient
-    next_actionable = {}
-    patient_stories = {}
-    for s in stories:
-        pid = s['patient_id']
-        if pid not in patient_stories:
-            patient_stories[pid] = []
-        patient_stories[pid].append(s)
-    for pid, s_list in patient_stories.items():
-        s_list_sorted = sorted(s_list, key=lambda x: x.get('stage', 0))
-        for s in s_list_sorted:
-            if s.get('status') not in ['approved']:
-                next_actionable[pid] = s['story_id']
-                break
-    # Attach compliance info if available
-    for s in stories:
-        compliance = mongo.db.compliance.find_one({'story_id': s['story_id']}, {'_id': 0})
-        if compliance:
-            s['compliance'] = compliance
-    return render_template('dashboard/story_review.html', stories=stories, patients=patients, next_actionable=next_actionable)
+    return jsonify({'status': 'success'})
 
-@app.route('/dashboard/audit')
-def dashboard_audit():
-    return render_template('dashboard/audit.html')
+@app.route('/dashboard/patients_overview')
+def dashboard_patients_overview():
+    return render_template('dashboard/patients_overview.html')
 
-@app.route('/dashboard/research')
-def dashboard_research():
-    return render_template('dashboard/research.html')
-
-@app.route('/dashboard/compliance')
-def dashboard_compliance():
-    return render_template('dashboard/compliance.html')
-
-@app.route('/dashboard')
-def dashboard_summary():
-    total_patients = mongo.db.patients.count_documents({})
-    total_stories = mongo.db.stories.count_documents({})
-    sud_feedback = list(mongo.db.session_feedback.find({}, {'_id': 0}).sort('timestamp', -1).limit(10))
-    session_feedback = list(mongo.db.session_feedback.find({}, {'_id': 0}).sort('timestamp', -1).limit(10))
+@app.route('/dashboard/feedback')
+def dashboard_feedback():
+    """Session feedback dashboard for therapists"""
+    feedback_service = FeedbackService(mongo)
+    
+    # Get all session feedback with patient details
+    all_feedback = list(mongo.db.session_feedback.find({}).sort('created_at', -1))
+    
+    # Get patient names mapping
     patient_map = {p['patient_id']: p.get('name', p['patient_id']) for p in mongo.db.patients.find({}, {'patient_id': 1, 'name': 1, '_id': 0}) if 'patient_id' in p}
-    for fb in session_feedback:
-        fb['patient_name'] = patient_map.get(fb.get('patient_id'), fb.get('patient_id', ''))
-    recent_activity = list(mongo.db.audit.find({}, {'_id': 0}).sort('timestamp', -1).limit(5))
-    return render_template(
-        'dashboard/summary_enhanced.html',
-        total_patients=total_patients,
-        total_stories=total_stories,
-        sud_feedback=sud_feedback,
-        session_feedback=session_feedback,
-        recent_activity=recent_activity
-    )
-
-@app.route('/dashboard/enhanced')
-def dashboard_enhanced():
-    """Enhanced dashboard with modern UI and real-time features"""
-    total_patients = mongo.db.patients.count_documents({})
-    total_stories = mongo.db.stories.count_documents({})
     
-    # Get session feedback with patient names
-    session_feedback = list(mongo.db.session_feedback.find({}, {'_id': 0}).sort('timestamp', -1).limit(10))
-    patient_map = {p['patient_id']: p.get('name', p['patient_id']) for p in mongo.db.patients.find({}, {'patient_id': 1, 'name': 1, '_id': 0}) if 'patient_id' in p}
-    for fb in session_feedback:
-        fb['patient_name'] = patient_map.get(fb.get('patient_id'), fb.get('patient_id', ''))
+    # Enrich feedback with patient names
+    for fb in all_feedback:
+        fb['patient_display_name'] = patient_map.get(fb.get('patient_id'), fb.get('patient_name', fb.get('patient_id', 'Unknown')))
+        # Convert ObjectId to string for JSON serialization
+        if '_id' in fb:
+            fb['_id'] = str(fb['_id'])
     
-    # Get recent activity
-    recent_activity = list(mongo.db.audit.find({}, {'_id': 0}).sort('timestamp', -1).limit(8))
+    # Calculate statistics
+    total_sessions = len(all_feedback)
+    avg_helpfulness = sum(fb.get('helpfulness_rating', 0) for fb in all_feedback) / total_sessions if total_sessions > 0 else 0
+    avg_comfort = sum(fb.get('comfort_rating', 0) for fb in all_feedback) / total_sessions if total_sessions > 0 else 0
+    avg_difficulty = sum(fb.get('difficulty_rating', 0) for fb in all_feedback) / total_sessions if total_sessions > 0 else 0
+    avg_improvement = sum(fb.get('improvement_rating', 0) for fb in all_feedback) / total_sessions if total_sessions > 0 else 0
     
-    # Format timestamps for display
-    from datetime import datetime
-    for activity in recent_activity:
-        if 'timestamp' in activity and isinstance(activity['timestamp'], datetime):
-            activity['timestamp'] = activity['timestamp'].strftime('%d/%m/%Y %H:%M')
+    # Group by patient for patient-specific insights
+    patient_feedback = {}
+    for fb in all_feedback:
+        patient_id = fb.get('patient_id', 'unknown')
+        if patient_id not in patient_feedback:
+            patient_feedback[patient_id] = {
+                'patient_name': fb['patient_display_name'],
+                'sessions': [],
+                'total_sessions': 0,
+                'avg_final_sud': 0,
+                'avg_helpfulness': 0
+            }
+        patient_feedback[patient_id]['sessions'].append(fb)
+        patient_feedback[patient_id]['total_sessions'] += 1
     
-    for feedback in session_feedback:
-        if 'timestamp' in feedback and isinstance(feedback['timestamp'], datetime):
-            feedback['timestamp'] = feedback['timestamp'].strftime('%d/%m/%Y %H:%M')
-    
-    # Get SUD trend data for charts
-    sud_data = list(mongo.db.stories.find({}, {'sud': 1, 'timestamp': 1, '_id': 0}).sort('timestamp', -1).limit(20))
+    # Calculate patient averages
+    for patient_id, data in patient_feedback.items():
+        sessions = data['sessions']
+        data['avg_final_sud'] = sum(s.get('final_sud', 0) for s in sessions) / len(sessions) if sessions else 0
+        data['avg_helpfulness'] = sum(s.get('helpfulness_rating', 0) for s in sessions) / len(sessions) if sessions else 0
+        data['last_session'] = max(sessions, key=lambda s: s.get('created_at', datetime.min))['created_at'] if sessions else None
     
     return render_template(
-        'dashboard/summary_enhanced.html',
-        total_patients=total_patients,
-        total_stories=total_stories,
-        session_feedback=session_feedback,
-        recent_activity=recent_activity,
-        sud_data=sud_data
+        'dashboard/feedback_dashboard.html',
+        all_feedback=convert_objectid(all_feedback),
+        patient_feedback=convert_objectid(patient_feedback),
+        total_sessions=total_sessions,
+        avg_helpfulness=round(avg_helpfulness, 1),
+        avg_comfort=round(avg_comfort, 1),
+        avg_difficulty=round(avg_difficulty, 1),
+        avg_improvement=round(avg_improvement, 1)
     )
-
-@app.route('/api/notifications', methods=['GET'])
-def api_notifications():
-    """Get system notifications for the dashboard"""
-    try:
-        # Check for high SUD values in recent sessions
-        notifications = []
-        
-        # Check for patients with consistently high SUD
-        high_sud_patients = list(mongo.db.stories.find(
-            {'sud': {'$gte': 8}}, 
-            {'patient_id': 1, 'sud': 1, 'timestamp': 1}
-        ).sort('timestamp', -1).limit(5))
-        
-        for patient_story in high_sud_patients:
-            patient = mongo.db.patients.find_one({'patient_id': patient_story['patient_id']}, {'name': 1})
-            if patient:
-                notifications.append({
-                    'type': 'warning',
-                    'message': f"רמת SUD גבוהה ({patient_story['sud']}) עבור {patient.get('name', 'מטופל')}"
-                })
-        
-        # Check for patients who haven't had sessions recently
-        from datetime import datetime, timedelta
-        week_ago = datetime.utcnow() - timedelta(days=7)
-        inactive_patients = list(mongo.db.patients.find({}, {'patient_id': 1, 'name': 1}))
-        
-        for patient in inactive_patients:
-            recent_story = mongo.db.stories.find_one(
-                {'patient_id': patient['patient_id'], 'timestamp': {'$gte': week_ago}}
-            )
-            if not recent_story:
-                notifications.append({
-                    'type': 'info',
-                    'message': f"לא היה מפגש השבוע עבור {patient.get('name', 'מטופל')}"
-                })
-        
-        # Limit notifications to avoid spam
-        notifications = notifications[:5]
-        
-        return jsonify({
-            'status': 'success',
-            'notifications': notifications
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
 
 @app.route('/api/dashboard', methods=['GET'])
 def api_dashboard():
@@ -691,7 +542,7 @@ def api_dashboard():
             'active_plans': active_plans,
             'pending_stories': pending_stories,
             'compliance_alerts': compliance_alerts,
-            'recent_activity': recent_activity
+            'recent_activity': convert_objectid(recent_activity)
         }
     })
 
@@ -702,7 +553,7 @@ def api_plans():
     if request.method == 'GET':
         # Placeholder: return all plans
         plans = list(mongo.db.plans.find({}, {'_id': 0}))
-        return jsonify({'status': 'success', 'plans': plans})
+        return jsonify({'status': 'success', 'plans': convert_objectid(plans)})
     elif request.method == 'POST':
         plan_data = request.json
         mongo.db.plans.insert_one(plan_data)
@@ -714,7 +565,7 @@ def api_plan_detail(plan_id):
         plan = mongo.db.plans.find_one({'plan_id': plan_id}, {'_id': 0})
         if not plan:
             return jsonify({'status': 'error', 'message': 'Plan not found'}), 404
-        return jsonify({'status': 'success', 'plan': plan})
+        return jsonify({'status': 'success', 'plan': convert_objectid(plan)})
     elif request.method == 'PUT':
         update_data = request.json
         mongo.db.plans.update_one({'plan_id': plan_id}, {'$set': update_data})
@@ -726,7 +577,7 @@ def api_story_detail(story_id):
         story = mongo.db.stories.find_one({'story_id': story_id}, {'_id': 0})
         if not story:
             return jsonify({'status': 'error', 'message': 'Story not found'}), 404
-        return jsonify({'status': 'success', 'story': story})
+        return jsonify({'status': 'success', 'story': convert_objectid(story)})
     elif request.method == 'PUT':
         update_data = request.json
         mongo.db.stories.update_one({'story_id': story_id}, {'$set': update_data})
@@ -735,7 +586,7 @@ def api_story_detail(story_id):
 @app.route('/api/audit', methods=['GET'])
 def api_audit():
     logs = list(mongo.db.audit.find({}, {'_id': 0}))
-    return jsonify({'status': 'success', 'audit': logs})
+    return jsonify({'status': 'success', 'audit': convert_objectid(logs)})
 
 @app.route('/api/compliance/<story_id>', methods=['GET'])
 def api_compliance(story_id):
@@ -749,13 +600,13 @@ def api_compliance(story_id):
                 {'rule': 'Coping', 'status': 'Pass', 'details': 'All coping mechanisms validated'}
             ]
         }
-    return jsonify({'status': 'success', 'compliance': compliance})
+    return jsonify({'status': 'success', 'compliance': convert_objectid(compliance)})
 
 @app.route('/api/patients', methods=['GET', 'POST'])
 def api_patients():
     if request.method == 'GET':
         patients = list(mongo.db.patients.find({}, {'_id': 0}))
-        return jsonify({'status': 'success', 'patients': patients})
+        return jsonify({'status': 'success', 'patients': convert_objectid(patients)})
     elif request.method == 'POST':
         try:
             patient_data = request.json
@@ -830,7 +681,7 @@ def api_patient_detail(patient_id):
         patient = mongo.db.patients.find_one({'patient_id': patient_id}, {'_id': 0})
         if not patient:
             return jsonify({'status': 'error', 'message': 'Patient not found'}), 404
-        return jsonify({'status': 'success', 'patient': patient})
+        return jsonify({'status': 'success', 'patient': convert_objectid(patient)})
     elif request.method == 'PUT':
         update_data = request.json
         # Normalize data before saving
@@ -929,7 +780,7 @@ def get_sud_feedback():
         }
         for f in feedback
     ]
-    return jsonify({'status': 'success', 'feedback': feedback_list})
+    return jsonify({'status': 'success', 'feedback': convert_objectid(feedback_list)})
 
 @app.route('/api/patient-lookup', methods=['POST'])
 def patient_lookup():
@@ -980,13 +831,12 @@ def feedback():
     if request.method == 'POST':
         data = request.form
         feedback_data = {
-            'patient_id': patient_id,
             'numeric': int(data.get('numeric', 0)),
             'text': data.get('text', ''),
             'timestamp': datetime.utcnow()
         }
-        mongo.db.session_feedback.insert_one(feedback_data)
-        mongo.db.patients.update_one({'patient_id': patient_id}, {'$push': {'feedback': feedback_data}})
+        feedback_service = FeedbackService(mongo)
+        feedback_service.record_feedback(patient_id, feedback_data)
         patient = mongo.db.patients.find_one({'patient_id': patient_id}, {'name': 1, '_id': 0})
         log_audit('feedback', patient.get('name', patient_id), f"Feedback: {feedback_data['numeric']}")
         session['feedback_submitted'] = True
@@ -1119,101 +969,7 @@ def api_patients_overview():
             'progress_rate': progress_rate,
             'hotspots': hotspots
         })
-    return jsonify({'status': 'success', 'patients': overview})
-
-@app.route('/dashboard/patients_overview')
-def dashboard_patients_overview():
-    return render_template('dashboard/patients_overview.html')
-
-# --- Exa AI Research Endpoints ---
-
-@app.route('/api/research/ptsd', methods=['POST'])
-def api_ptsd_research():
-    """Search for PTSD research and clinical studies"""
-    data = request.json
-    query = data.get('query', '')
-    if not query:
-        return jsonify({'status': 'error', 'message': 'Query is required'}), 400
-    
-    try:
-        results = search_ptsd_research(query)
-        return jsonify({'status': 'success', 'results': results.results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/research/cbt-techniques', methods=['POST'])
-def api_cbt_techniques():
-    """Search for CBT techniques"""
-    data = request.json
-    technique = data.get('technique', '')
-    if not technique:
-        return jsonify({'status': 'error', 'message': 'Technique name is required'}), 400
-    
-    try:
-        results = search_cbt_techniques(technique)
-        return jsonify({'status': 'success', 'results': results.results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/research/exposure-therapy', methods=['GET'])
-def api_exposure_therapy():
-    """Search for exposure therapy methods"""
-    try:
-        results = search_exposure_therapy_methods()
-        return jsonify({'status': 'success', 'results': results.results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/research/sud-scale', methods=['GET'])
-def api_sud_scale():
-    """Search for SUD scale research"""
-    try:
-        results = search_sud_scale_research()
-        return jsonify({'status': 'success', 'results': results.results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/research/narrative-therapy', methods=['GET'])
-def api_narrative_therapy():
-    """Search for narrative therapy approaches"""
-    try:
-        results = search_narrative_therapy_ptsd()
-        return jsonify({'status': 'success', 'results': results.results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/resources/therapist', methods=['POST'])
-def api_therapist_resources():
-    """Search for therapist resources on specific topics"""
-    data = request.json
-    topic = data.get('topic', '')
-    if not topic:
-        return jsonify({'status': 'error', 'message': 'Topic is required'}), 400
-    
-    try:
-        results = search_therapist_resources(topic)
-        return jsonify({'status': 'success', 'results': results.results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/resources/coping-strategies', methods=['GET'])
-def api_coping_strategies():
-    """Search for patient coping strategies"""
-    try:
-        results = search_patient_coping_strategies()
-        return jsonify({'status': 'success', 'results': results.results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/resources/trigger-management', methods=['GET'])
-def api_trigger_management():
-    """Search for trauma trigger management techniques"""
-    try:
-        results = search_trauma_triggers_management()
-        return jsonify({'status': 'success', 'results': results.results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
+    return jsonify({'status': 'success', 'patients': convert_objectid(overview)})
 
 @app.route('/dashboard/session-notes')
 def dashboard_session_notes():
@@ -1328,7 +1084,7 @@ def api_load_session_notes():
             note['_id'] = str(note['_id'])  # Convert ObjectId to string
             return jsonify({
                 'status': 'success',
-                'notes': note
+                'notes': convert_objectid(note)
             })
         else:
             return jsonify({
@@ -1365,7 +1121,7 @@ def api_list_session_notes(patient_id):
         
         return jsonify({
             'status': 'success',
-            'notes': notes_list,
+            'notes': convert_objectid(notes_list),
             'count': len(notes_list)
         })
         
@@ -1425,14 +1181,12 @@ def api_list_all_session_notes():
         
         return jsonify({
             'status': 'success',
-            'notes': notes_list,
+            'notes': convert_objectid(notes_list),
             'count': len(notes_list)
         })
         
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# --- Wellness Tracker Endpoints ---
 
 @app.route('/dashboard/wellness-tracker')
 def dashboard_wellness_tracker():
@@ -1511,7 +1265,7 @@ def api_get_wellness_log(date):
             log['_id'] = str(log['_id'])  # Convert ObjectId to string
             return jsonify({
                 'status': 'success',
-                'log': log
+                'log': convert_objectid(log)
             })
         else:
             return jsonify({
@@ -1522,8 +1276,6 @@ def api_get_wellness_log(date):
             
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# --- Mindfulness Endpoints ---
 
 @app.route('/dashboard/mindfulness')
 def dashboard_mindfulness():
@@ -1611,7 +1363,7 @@ def api_get_mindfulness_sessions():
         
         return jsonify({
             'status': 'success',
-            'sessions': sessions_list,
+            'sessions': convert_objectid(sessions_list),
             'count': len(sessions_list)
         })
         
@@ -1642,20 +1394,18 @@ def test_dashboard():
 @app.route('/api/audit', methods=['GET'])
 def audit():
     audit_data = list(mongo.db.audit_log.find({}, {'_id': 0}).sort('timestamp', -1).limit(100))
-    return jsonify({'audit': audit_data})
+    return jsonify({'audit': convert_objectid(audit_data)})
 
 # Session Management & Feedback APIs
 @app.route('/api/session-feedback', methods=['POST', 'GET'])
 def api_session_feedback():
     """Submit or retrieve session feedback"""
+    feedback_service = FeedbackService(mongo)
     if request.method == 'POST':
         try:
             data = request.get_json()
-            
-            # Enhanced feedback data structure
+            patient_id = data.get('patientId', 'unknown')
             feedback_doc = {
-                # Session information
-                'patient_id': data.get('patientId', 'unknown'),
                 'patient_name': data.get('patientName', 'אנונימי'),
                 'session_type': data.get('sessionType', 'מושלם'),
                 'session_date': data.get('sessionDate'),
@@ -1663,8 +1413,6 @@ def api_session_feedback():
                 'end_time': data.get('endTime'),
                 'session_duration_minutes': data.get('sessionDuration', 0),
                 'chapters_completed': data.get('chaptersCompleted', 0),
-                
-                # Ratings and feedback
                 'final_sud': data.get('finalSUD', 50),
                 'helpfulness_rating': data.get('helpfulness', 5),
                 'comfort_rating': data.get('comfort', 5),
@@ -1672,20 +1420,15 @@ def api_session_feedback():
                 'improvement_rating': data.get('improvement', 5),
                 'would_recommend': data.get('wouldRecommend', 'yes'),
                 'comments': data.get('comments', ''),
-                
-                # Timestamps
                 'submitted_at': data.get('submittedAt'),
                 'created_at': datetime.utcnow(),
                 'timestamp': datetime.utcnow()
             }
-            
-            # Save to MongoDB
-            result = mongo.db.session_feedback.insert_one(feedback_doc)
-            
+            feedback_id = feedback_service.record_feedback(patient_id, feedback_doc)
             # Update patient's session count and last session date
             try:
                 mongo.db.patients.update_one(
-                    {'patient_id': feedback_doc['patient_id']},
+                    {'patient_id': patient_id},
                     {
                         '$set': {
                             'last_session_date': feedback_doc['created_at'],
@@ -1696,38 +1439,29 @@ def api_session_feedback():
                 )
             except Exception as e:
                 print(f"Error updating patient session count: {e}")
-            
             return jsonify({
                 'status': 'success',
                 'message': 'משוב נשמר בהצלחה',
-                'feedback_id': str(result.inserted_id)
+                'feedback_id': feedback_id
             })
-            
         except Exception as e:
             print(f"Session feedback submission error: {e}")
             return jsonify({
                 'status': 'error',
                 'message': 'שגיאה בשמירת המשוב'
             }), 500
-    
     else:  # GET request
         try:
-            # Get recent feedback for dashboard
-            feedback_data = list(mongo.db.session_feedback.find(
-                {},
-                {'_id': 0}
-            ).sort('created_at', -1).limit(50))
-            
+            feedback_data = feedback_service.get_recent_feedback(limit=50)
             # Calculate statistics
             total_feedback = len(feedback_data)
             completed_sessions = len([f for f in feedback_data if f.get('session_type') == 'מושלם'])
             avg_helpfulness = sum(f.get('helpfulness_rating', 0) for f in feedback_data) / max(total_feedback, 1)
             avg_improvement = sum(f.get('improvement_rating', 0) for f in feedback_data) / max(total_feedback, 1)
             recommendations = len([f for f in feedback_data if f.get('would_recommend') == 'yes'])
-            
             return jsonify({
                 'status': 'success',
-                'feedback': feedback_data,
+                'feedback': convert_objectid(feedback_data),
                 'statistics': {
                     'total_feedback': total_feedback,
                     'completed_sessions': completed_sessions,
@@ -1737,7 +1471,6 @@ def api_session_feedback():
                     'recommendation_rate': round((recommendations / max(total_feedback, 1)) * 100, 1)
                 }
             })
-            
         except Exception as e:
             print(f"Session feedback retrieval error: {e}")
             return jsonify({
@@ -1897,8 +1630,9 @@ def generate_chapter_story(patient_id, scenario_state, stage):
         # Generate TTS audio
         audio_file = None
         try:
-            from services.story_gen import generate_audio_file
-            audio_file = generate_audio_file(story_text, patient)
+            from services.tts_service import TTSService
+            tts_service = TTSService()
+            audio_file = tts_service.generate_audio_file(story_text, patient)
         except Exception as audio_error:
             print(f"TTS generation error: {audio_error}")
             # Continue without audio
@@ -1928,7 +1662,7 @@ def generate_chapter_story(patient_id, scenario_state, stage):
             'story': story_text,
             'audio_file': audio_file,
             'stage': stage,
-            'metadata': story_doc['metadata']
+            'metadata': convert_objectid(story_doc['metadata'])
         }
         
     except Exception as e:
@@ -1978,9 +1712,18 @@ def media_suggestions():
                 suggestions = pyjson.loads(match.group(0))
             else:
                 return jsonify({'status': 'error', 'message': 'Could not parse AI response.'}), 500
-        return jsonify({'status': 'success', 'suggestions': suggestions})
+        return jsonify({'status': 'success', 'suggestions': convert_objectid(suggestions)})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/dashboard')
+def dashboard_redirect():
+    return redirect('/dashboard/summary_enhanced')
+
+@app.route('/dashboard/summary_enhanced')
+def dashboard_summary_enhanced():
+    # You may want to pass the same context as before, or just render the template
+    return render_template('dashboard/summary_enhanced.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 
