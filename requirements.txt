@@ -10,4 +10,5 @@ exa-py
 networkx>=3.0
 aiofiles>=23.0.0
 colorlog>=6.7.0
-structlog>=24.1.0 
+structlog>=24.1.0
+Flask-Cors>=4.0.0 

@@ -16,6 +16,9 @@ import AuditLogScreen from './screens/AuditLogScreen';
 import ResearchScreen from './screens/ResearchScreen';
 import AvatarCustomizationScreen from './screens/AvatarCustomizationScreen';
 import EncouragementWallScreen from './screens/EncouragementWallScreen';
+import SUDScreen from './screens/SUDScreen';
+import SessionCompletionScreen from './screens/SessionCompletionScreen';
+import PreSessionGuidelinesScreen from './screens/PreSessionGuidelinesScreen';
 import { SessionProvider } from './SessionContext';
 
 const Stack = createStackNavigator();
@@ -27,6 +30,7 @@ export default function App() {
         <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="PreSession" component={PreSessionScreen} />
+          <Stack.Screen name="PreSessionGuidelines" component={PreSessionGuidelinesScreen} />
           <Stack.Screen name="Session" component={SessionScreen} />
           <Stack.Screen name="Stories" component={StoryListScreen} />
           <Stack.Screen name="Player" component={StoryPlayerScreen} />
@@ -39,6 +43,8 @@ export default function App() {
           <Stack.Screen name="Research" component={ResearchScreen} />
           <Stack.Screen name="AvatarCustomization" component={AvatarCustomizationScreen} options={{ title: 'אווטאר אישי' }} />
           <Stack.Screen name="EncouragementWall" component={EncouragementWallScreen} options={{ title: 'קיר עידוד' }} />
+          <Stack.Screen name="SUDScreen" component={SUDScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="SessionCompletion" component={SessionCompletionScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SessionProvider>

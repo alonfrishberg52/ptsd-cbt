@@ -5,13 +5,17 @@ Centralizes hard-coded values for better maintainability
 
 import os
 from typing import Dict, Tuple, Any
+from pathlib import Path
+
+# Resolve repository root (PTSD directory)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 class TTSConfig:
     """Text-to-Speech configuration"""
     LANGUAGE_CODE = 'iw'  # Hebrew language code
     SLOW_SPEECH = False
     TLD = 'com'  # Use google.com for better Hebrew support
-    AUDIO_DIR = 'static/audio'
+    AUDIO_DIR = str(BASE_DIR / 'static' / 'audio')
     FILE_PREFIX = 'therapy_story'
     FILE_EXTENSION = '.mp3'
     
@@ -68,12 +72,12 @@ class LoggingConfig:
     """Logging configuration"""
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    LOG_FILE = 'logs/ptsd_app.log'
+    LOG_FILE = str(BASE_DIR / 'logs' / 'ptsd_app.log')
     MAX_LOG_SIZE = 10 * 1024 * 1024  # 10MB
     BACKUP_COUNT = 5
 
 class HebrewConfig:
     """Hebrew language processing configuration"""
-    PRONUNCIATION_DICT_FILE = 'config/hebrew_pronunciation.json'
-    GENDER_FIXES_FILE = 'config/hebrew_gender_fixes.json'
-    CONTEXT_RULES_FILE = 'config/hebrew_context_rules.json'
+    PRONUNCIATION_DICT_FILE = str(BASE_DIR / 'config' / 'hebrew_pronunciation.json')
+    GENDER_FIXES_FILE = str(BASE_DIR / 'config' / 'hebrew_gender_fixes.json')
+    CONTEXT_RULES_FILE = str(BASE_DIR / 'config' / 'hebrew_context_rules.json')

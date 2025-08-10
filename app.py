@@ -2,7 +2,7 @@
 Flask application with MongoDB integration and text-to-speech capabilities for PTSD story generation.
 """
 
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, flash, url_for
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, flash, url_for, send_from_directory
 from flask_pymongo import PyMongo
 from datetime import datetime, timedelta
 import os
@@ -610,7 +610,18 @@ def api_patients():
     elif request.method == 'POST':
         try:
             patient_data = request.json
-            
+
+            # --- Write patient data to a file ---
+            import json
+            from datetime import datetime
+            with open('new_patients_log.jsonl', 'a', encoding='utf-8') as f:
+                log_entry = {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'patient': patient_data
+                }
+                f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
+            # --- End file write ---
+
             # Validate required fields
             required_fields = ['first_name', 'last_name', 'age']
             for field in required_fields:

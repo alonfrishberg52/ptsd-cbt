@@ -18,20 +18,71 @@ import {
   Linking
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { startScenario, nextScenario, previousScenario, getAudioUrl, exitSession } from '../api';
+import { startScenario, nextScenario, previousScenario, getAudioUrl, exitSession, API_BASE_URL } from '../api';
 import LottieView from 'lottie-react-native';
 import DynamicBackground from '../components/DynamicBackground';
 import { useSession } from '../SessionContext';
 import { WebView } from 'react-native-webview';
+import omriCh1 from '../stories/omri-ch1';
+import omriCh2 from '../stories/omri-ch2';
+import omriCh3 from '../stories/omri-ch3';
+import Svg, { Path, Text as SvgText } from 'react-native-svg';
+import EscapeIcon from '../components/EscapeIcon';
 
 const { width } = Dimensions.get('window');
+
+// Custom audio player icons
+const RewindIcon = ({ size = 40, color = "#fff" }) => (
+  <Svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+    {/* Outer circle */}
+    <Path 
+      d="M20 2C30.4934 2 39 10.5066 39 21C39 31.4934 30.4934 40 20 40C9.50659 40 1 31.4934 1 21C1 10.5066 9.50659 2 20 2" 
+      stroke={color} 
+      strokeWidth="2" 
+      fill="none"
+      strokeLinecap="round"
+    />
+    {/* Arrow pointing left */}
+    <Path 
+      d="M5 21L10 16L10 19L14 19L14 23L10 23L10 26L5 21Z" 
+      fill={color}
+    />
+    {/* 15 text in center */}
+    <SvgText 
+      x="20" 
+      y="25" 
+      fontSize="12" 
+      fill={color} 
+      textAnchor="middle" 
+      fontWeight="bold"
+    >
+      15
+    </SvgText>
+  </Svg>
+);
+
+const PlayIcon = ({ size = 24, color = "#787878" }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M8 5V19L19 12L8 5Z" fill={color}/>
+  </Svg>
+);
+
+const VolumeIcon = ({ size = 32, color = "#fff" }) => (
+  <Svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+    {/* Speaker */}
+    <Path d="M6 10V22H10L16 26V6L10 10H6Z" fill={color}/>
+    {/* Sound waves */}
+    <Path d="M20 8C22.21 10.21 22.21 13.79 20 16" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <Path d="M23 5C26.31 8.31 26.31 15.69 23 19" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+  </Svg>
+);
 
 export default function SessionScreen({ route, navigation }) {
   // Debug: log route params to help catch missing or malformed data
   console.log('SessionScreen route.params:', route.params);
 
   // Safely destructure with fallback
-  const { patient, initialStory, initialStage, initialScenarioState } = route.params || {};
+  const { patient, initialStory, initialStage, initialScenarioState, storyType, storyId, feeling } = route.params || {};
   const [sessionState, setSessionState] = useState('initial');
   const [currentStage, setCurrentStage] = useState(initialStage || 1);
   const [story, setStory] = useState(initialStory || null);
@@ -70,6 +121,28 @@ export default function SessionScreen({ route, navigation }) {
   // Add state for selectedChoice
   const [selectedChoice, setSelectedChoice] = useState(null);
   const [choiceError, setChoiceError] = useState(null);
+
+  // Static story state
+  const [currentChapter, setCurrentChapter] = useState(1);
+  const [chapterText, setChapterText] = useState('');
+  const [chapterLoading, setChapterLoading] = useState(false);
+  const [chapterError, setChapterError] = useState(null);
+  const totalChapters = 3; // For omri static story, adjust if needed
+
+  // Use bundled chapters if storyType is 'static'
+  useEffect(() => {
+    if (storyType === 'static' && storyId === 'omri') {
+      setChapterLoading(false);
+      setChapterError(null);
+      const chapters = [omriCh1, omriCh2, omriCh3];
+      if (currentChapter >= 1 && currentChapter <= chapters.length) {
+        setChapterText(chapters[currentChapter - 1]);
+      } else {
+        setChapterError('פרק לא קיים');
+        setChapterText('');
+      }
+    }
+  }, [storyType, storyId, currentChapter]);
 
   // All useEffect hooks here
   useEffect(() => {
@@ -192,41 +265,127 @@ export default function SessionScreen({ route, navigation }) {
     }
   }, [sessionState]);
 
+  // Handle continue to SUD screen
+  const handleContinueToSUD = () => {
+    console.log('Continue button clicked, currentChapter:', currentChapter, 'totalChapters:', totalChapters);
+    if (currentChapter < totalChapters) {
+      console.log('Navigating to SUDScreen');
+      navigation.navigate('SUDScreen', {
+        initialSUD: sudValue,
+        onComplete: (newSUD) => {
+          console.log('SUD completed with value:', newSUD);
+          setSudValue(newSUD);
+          setCurrentChapter(prev => prev + 1);
+          navigation.goBack();
+        },
+        chapter: currentChapter,
+      });
+    } else {
+      console.log('Last chapter, navigating to SessionCompletion');
+      // Last chapter, go to completion screen
+      navigation.navigate('SessionCompletion');
+    }
+  };
+
   // Now, after all hooks, do conditional returns
-  if (sessionState === 'completed') {
+  if (storyType === 'static' && storyId === 'omri') {
+    // All text unbolded and scrollable, native gesture only
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#E0F2FE', justifyContent: 'center', alignItems: 'center' }}>
-        <DynamicBackground />
-        <Modal visible={showRewardModal} transparent animationType="fade">
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center', width: 300 }}>
-              <LottieView source={require('../assets/coins.json')} autoPlay loop={false} style={{ width: 120, height: 120 }} />
-              <Text style={{ color: '#1E40AF', fontSize: 22, fontWeight: 'bold', marginTop: 16 }}>הרווחת 10 מטבעות!</Text>
-              {newTrophy && (
-                <>
-                  <LottieView source={require('../assets/trohpy.json')} autoPlay loop={false} style={{ width: 100, height: 100, marginTop: 8 }} />
-                  <Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold', marginTop: 8 }}>🏆 {newTrophy.label}</Text>
-                  <Text style={{ color: '#64748B', fontSize: 15 }}>{newTrophy.desc}</Text>
-                </>
-              )}
-              <TouchableOpacity onPress={() => setShowRewardModal(false)} style={{ marginTop: 24, backgroundColor: '#1E40AF', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 24 }}>
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>סגור</Text>
-              </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F5EA' }}>
+        {/* Top bar */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 24, marginBottom: 12 }}>
+          {/* Progress bar */}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <View style={{ width: 80, height: 6, borderRadius: 3, backgroundColor: '#E5E7EB', overflow: 'hidden' }}>
+              <View style={{ width: (currentChapter / totalChapters) * 80, height: 6, borderRadius: 3, backgroundColor: '#222' }} />
             </View>
           </View>
-        </Modal>
-        <LottieView
-          source={require('../assets/well_done.json')}
-          autoPlay
-          loop={false}
-          style={{ width: 200, height: 200 }}
-        />
-        <Text style={{ fontSize: 24, color: '#059669', fontWeight: '800', marginTop: 32, textAlign: 'center' }}>
-          כל הכבוד!
-        </Text>
-        <Text style={{ fontSize: 16, color: '#64748B', marginTop: 12, textAlign: 'center' }}>
-          סיימת בהצלחה את המפגש
-        </Text>
+          {/* Escape button */}
+          <TouchableOpacity style={{ marginLeft: 16 }} onPress={() => navigation.goBack()}>
+            <EscapeIcon />
+          </TouchableOpacity>
+        </View>
+        {/* Story text (scrollable, all unbolded) */}
+        <ScrollView
+          style={{ width: '100%' }}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
+          showsVerticalScrollIndicator={true}
+        >
+          <Text style={{ fontSize: 24, color: '#C7C7C7', fontWeight: '600', textAlign: 'center', lineHeight: 36 }}>
+            {chapterText}
+          </Text>
+          
+          {/* Continue button at the end of each chapter */}
+          <TouchableOpacity 
+            style={{ 
+              backgroundColor: '#fff', 
+              borderRadius: 20, 
+              padding: 16, 
+              marginTop: 40, 
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.07,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
+            onPress={handleContinueToSUD}
+          >
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>
+              {currentChapter === totalChapters ? 'סיים מפגש' : 'המשך'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+        {/* Audio player */}
+        <View style={{
+          position: 'absolute',
+          width: 201.02,
+          height: 80.9,
+          left: '50%',
+          marginLeft: -100.51, // Half of width to center
+          bottom: 40,
+          backgroundColor: 'rgba(37, 37, 37, 0.6)',
+          borderRadius: 15.9557,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: 24,
+          paddingVertical: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          elevation: 8,
+        }}>
+          {/* 15s Rewind */}
+          <TouchableOpacity>
+            <RewindIcon size={40} color="#fff" />
+          </TouchableOpacity>
+          
+          {/* Play Button */}
+          <TouchableOpacity>
+            <View style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: '#fff',
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}>
+              <PlayIcon size={24} color="#787878" />
+            </View>
+          </TouchableOpacity>
+          
+          {/* Volume/Speaker */}
+          <TouchableOpacity>
+            <VolumeIcon size={32} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -342,7 +501,7 @@ export default function SessionScreen({ route, navigation }) {
         setSessionState('completed');
         const finalCompletedChapters = [...completedChapters, currentStage];
         setCompletedChapters(finalCompletedChapters);
-        navigateToFeedback();
+        navigateToCompletion();
       } else {
         Alert.alert('שגיאה', response.message || 'שגיאה במעבר לפרק הבא');
       }
@@ -438,12 +597,12 @@ export default function SessionScreen({ route, navigation }) {
     );
   };
 
-  // Handle feedback navigation (for completed sessions)
-  const navigateToFeedback = () => {
+  // Handle completion navigation (for completed sessions)
+  const navigateToCompletion = () => {
     const endTime = new Date().toISOString();
     setSessionEndTime(endTime);
     
-    navigation.navigate('Feedback', {
+    navigation.navigate('SessionCompletion', {
       sessionData: {
         patient,
         sessionType: 'מושלם',
@@ -700,15 +859,15 @@ export default function SessionScreen({ route, navigation }) {
           <View style={{ width: 26, height: 12, borderRadius: 6, backgroundColor: getShirtColor(avatar?.shirt), marginTop: -4 }} />
         </View>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={true}>
         {/* Header with controls */}
         <View style={styles.sessionHeader}>
           <View style={styles.headerTop}>
             <TouchableOpacity
-              style={styles.exitSessionButton}
-              onPress={handleExitSession}
+              style={styles.textSizeButton}
+              onPress={() => setShowTextSizeMenu(true)}
             >
-              <Text style={styles.exitSessionButtonText}>✕</Text>
+              <Text style={styles.textSizeButtonText}>Aa</Text>
             </TouchableOpacity>
             
             <View style={styles.headerCenter}>
@@ -717,10 +876,10 @@ export default function SessionScreen({ route, navigation }) {
             </View>
 
             <TouchableOpacity
-              style={styles.textSizeButton}
-              onPress={() => setShowTextSizeMenu(true)}
+              style={styles.exitSessionButton}
+              onPress={handleExitSession}
             >
-              <Text style={styles.textSizeButtonText}>Aa</Text>
+              <EscapeIcon />
             </TouchableOpacity>
           </View>
 

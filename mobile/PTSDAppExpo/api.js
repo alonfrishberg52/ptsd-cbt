@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://10.100.102.9:5000';
+export const API_BASE_URL = 'http://172.16.46.89:5000';
 
 export async function fetchPatients() {
   console.log('[API] GET', `${API_BASE_URL}/api/patients`);

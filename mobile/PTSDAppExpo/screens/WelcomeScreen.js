@@ -448,36 +448,61 @@ export default function WelcomeScreen({ navigation }) {
   // Main welcome screen content
   if (!showSudInput && !initialLoading) {
     return (
-      <SafeAreaView style={styles.figmaGradient}>
-        <View style={styles.figmaLogoContainer}>
-          <Image
-            source={require('../assets/logo.png')}
-            style={styles.figmaLogo}
-            resizeMode="contain"
-          />
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#FAF9F3' }}>
+        {/* Hamburger menu icon */}
+        <View style={{ position: 'absolute', top: 56, right: 24, zIndex: 10 }}>
+          <TouchableOpacity onPress={() => { /* TODO: open menu */ }}>
+            <Text style={{ fontSize: 28, color: '#222', fontWeight: 'bold' }}>≡</Text>
+          </TouchableOpacity>
         </View>
-        <Text style={styles.figmaHeadline}>NarraTIVE</Text>
-        <Text style={styles.figmaTagline}>ליווי אישי וסיפורים מותאמים להתמודדות עם פוסט טראומה</Text>
-        <View style={styles.figmaCard}>
-          <Text style={styles.figmaCardTitle}>כניסה</Text>
-          <Text style={styles.figmaCardSubtitle}>נא הזן את שמך המלא כדי להתחבר:</Text>
-          <TextInput
-            style={styles.figmaInput}
-            placeholder="הזן את שמך"
-            placeholderTextColor="#A0AEC0"
-            value={nameInput}
-            onChangeText={setNameInput}
-            autoCapitalize="words"
-            textAlign="right"
-          />
+        {/* Radial gradient background */}
+        <View style={{
+          position: 'absolute',
+          left: -120,
+          top: 200,
+          width: 500,
+          height: 500,
+          borderRadius: 250,
+          backgroundColor: '#F9E3DD',
+          opacity: 0.45,
+          zIndex: 0,
+        }} />
+        {/* Main content */}
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+          <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#222', textAlign: 'center', marginBottom: 0, marginTop: 60, lineHeight: 44 }}>
+            היי עמרי,
+          </Text>
+          <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#222', textAlign: 'center', marginBottom: 18, lineHeight: 44 }}>
+            צהריים טובים
+          </Text>
+          <Text style={{ fontSize: 20, color: '#444', textAlign: 'center', marginBottom: 0, fontWeight: '400', lineHeight: 30 }}>
+            ברוך הבא לתרגול השבועי,
+          </Text>
+          <Text style={{ fontSize: 20, color: '#444', textAlign: 'center', marginBottom: 0, fontWeight: '400', lineHeight: 30 }}>
+            שנתחיל לתרגל?
+          </Text>
+        </View>
+        {/* Start button at the bottom */}
+        <View style={{ position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center' }}>
           <TouchableOpacity
-            style={styles.figmaButton}
-            onPress={handleNameSubmit}
-            disabled={loading}
+            style={{
+              flexDirection: 'row-reverse',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#fff',
+              borderRadius: 40,
+              width: '88%',
+              height: 64,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.07,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
+            onPress={() => navigation.navigate('PreSession')}
           >
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={styles.figmaButtonText}>{loading ? 'טוען...' : 'התחבר'}</Text>
-            </View>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#222', marginLeft: 12 }}>בוא נתחיל</Text>
+            <Text style={{ fontSize: 22, color: '#222', marginRight: 0 }}>←</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

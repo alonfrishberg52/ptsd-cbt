@@ -299,7 +299,7 @@ class StoryGenAgent:
     
     def __init__(self):
         self._prompt = load_prompt('story_gen_prompt.txt')
-    
+            
     def _get_patient_from_mongo(self, patient_id: str) -> Optional[Dict]:
         """Fetch patient data from MongoDB patients collection."""
         try:
@@ -535,10 +535,10 @@ class StoryGenAgent:
                 "content": enhanced_system_prompt
             },
             {
-                "role": "user", 
+                "role": "user",
                 "content": user_prompt
-            }
-        ]
+                    }
+                ]
         
         completion = client.chat_completion(
             messages,
